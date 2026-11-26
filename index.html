@@ -164,6 +164,7 @@ textarea{font:16px/1.4 monospace;width:100%;min-height:84px;padding:6px 10px;bor
       <canvas class="px" id="titleHero"></canvas>
       <div class="win" style="text-align:center">からだを うごかして<br>モンスターを たおそう！</div>
       <button class="big" id="startBtn">ぼうけんに でる</button>
+      <button class="sub bgmBtn">おんがく：ON</button>
       <p class="note">きろくは この スマホの なかに だけ のこります。<br><a href="OFL.txt" style="color:#aaa">フォント：DotGothic16（SIL Open Font License 1.1）</a></p>
     </div>
   </section>
@@ -238,6 +239,7 @@ textarea{font:16px/1.4 monospace;width:100%;min-height:84px;padding:6px 10px;bor
       <div class="win"><h2 style="font-size:17px">そうび</h2>
         <div class="items" id="setEq" style="padding:0"></div></div>
       <button class="big" id="setOk">これで けってい！</button>
+      <button class="sub bgmBtn">おんがく：ON</button>
       <button class="sub" id="plSwitch">プレイヤー きりかえ</button>
       <button class="sub" id="parentBtn">おうちのひと メニュー（あんしょうばんごう）</button>
     </div>
@@ -377,9 +379,9 @@ function drawHero(cv,st=S){
 
 // ---------- 共通 ----------
 const $=id=>document.getElementById(id);
-const show=id=>{document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));$('hud').classList.toggle('on',['sWorld','sMap','sShop','sHist'].includes(id));updHud()};
+const show=id=>{document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));$('hud').classList.toggle('on',['sWorld','sMap','sShop','sHist'].includes(id));updHud();const t=bgmFor(id);if(t)bgmPlay(t)};
 let shopTab='eq',histBack='sWorld',actx,B=null,timer=null,walkFrom=null,cd=0,walking=false,dunClear=false,back='sTitle';
-const beep=(f=660,d=.08)=>{try{actx=actx||new AudioContext();const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=f;g.gain.value=.05;o.connect(g).connect(actx.destination);o.start();o.stop(actx.currentTime+d)}catch(e){}};
+const beep=(f=660,d=.08)=>{try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=f;g.gain.value=.05;o.connect(g).connect(actx.destination);o.start();o.stop(actx.currentTime+d)}catch(e){}};
 function dialog(html,btns){$('dlgBody').innerHTML=html+btns.map((b,i)=>`<button id="db${i}" ${i?'class="sub"':''}>${b[0]}</button>`).join('');
  btns.forEach((b,i)=>$('db'+i).onclick=()=>{$('dlg').classList.remove('on');b[1]&&b[1]()});$('dlg').classList.add('on');$('db0').focus()}
 function updHud(){
@@ -552,6 +554,7 @@ $('actBtn').onclick=()=>{const e=B.list[B.step];
  if(e.t==='rep')hit(Math.min(10,e.c-B.n));
  else if(!B.running){B.running=true;$('actBtn').textContent='がんばれ…！';$('actBtn').disabled=true;timer=setInterval(hit,1000)}};
 function win(){
+ bgmStop();
  $('monC').classList.add('down');[660,880,1100].forEach((f,i)=>setTimeout(()=>beep(f,.15),i*150));
  const before=lvOf(S.xp),gx=B.total*2+(B.s.boss?20:0),gc=B.s.boss?30:10;
  S.xp+=gx;S.coin+=gc;S.done++;addLog(`${B.s.m}を たおした`,gc);
@@ -658,6 +661,63 @@ $('plBack').onclick=()=>{drawHero($('titleHero'));show('sTitle')};
 $('nameIn').oninput=()=>{S.name=$('nameIn').value.trim().slice(0,8)};
 $('plSwitch').onclick=()=>{S.name=$('nameIn').value.trim().slice(0,8);save();renderPlayers();show('sPlayers')};
 $('delPl').onclick=()=>{dialog(`<h2>ほんとうに けす？</h2><p>「<span id="delNm"></span>」の ポイント・そうび・すすみぐあいが ぜんぶ きえます。もとに もどせません。</p>`,[['けす',()=>{ROOT.slots[ROOT.cur]=null;S=fresh();try{localStorage.setItem('uq',JSON.stringify(ROOT))}catch(e){}beep(200,.2);renderPlayers();show('sPlayers')}],['やめる']]);$('delNm').textContent=S.name||`プレイヤー${ROOT.cur+1}`};
+
+// ---------- BGM（オリジナル曲・電子音で その場で ならす） ----------
+const NT={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+const fq=n=>{const m=n.match(/^([A-G])([#b]?)(\d)$/);return 440*2**((12*(+m[3]+1)+NT[m[1]]+(m[2]==='#'?1:m[2]==='b'?-1:0)-69)/12)};
+const sq=str=>str.trim().split(/\s+/).map(t=>{const [n,l]=t.split('.');return{f:n==='-'?0:fq(n),l:+l}});
+const rp=(t,n)=>Array(n).fill(t).join(' ');
+const TR={
+ world:{bpm:132,dr:'k...h.h.s...h.h.',
+  lead:'E5.2 G5.2 C6.4 B5.2 G5.2 A5.4 G5.2 E5.2 F5.2 D5.2 E5.8 F5.2 A5.2 D6.4 C6.2 A5.2 B5.4 A5.2 G5.2 F5.2 D5.2 G5.6 -.2 E5.2 G5.2 C6.4 B5.2 G5.2 A5.4 G5.2 E5.2 F5.2 A5.2 G5.8 F5.2 E5.2 D5.2 F5.2 E5.2 D5.2 C5.2 E5.2 D5.4 G4.4 C5.6 -.2',
+  bass:'C3.4 G3.4 C3.4 G3.4 A2.4 E3.4 A2.4 E3.4 D3.4 A3.4 D3.4 A3.4 G2.4 D3.4 G2.4 B2.4 C3.4 G3.4 C3.4 G3.4 C3.4 G3.4 E3.4 G3.4 F2.4 C3.4 G2.4 D3.4 G2.4 G2.4 C3.4 C3.4'},
+ dungeon:{bpm:96,dr:'k.......s.......',
+  lead:'A4.4 C5.4 E5.4 D5.4 C5.4 B4.4 G#4.8 A4.4 C5.4 F5.4 E5.4 D5.4 B4.4 A4.8',
+  bass:'A2.8 E2.8 A2.8 E2.8 F2.8 C3.8 E2.8 A2.8'},
+ battle:{bpm:152,dr:'k.h.s.h.k.k.s.h.',
+  lead:'E5.2 E5.1 E5.1 G5.2 E5.2 A5.2 G5.2 F#5.2 D5.2 E5.2 E5.1 E5.1 G5.2 E5.2 B5.4 A5.4 C6.2 B5.2 A5.2 G5.2 A5.2 G5.2 F#5.2 D5.2 E5.4 B4.4 E5.6 -.2',
+  bass:rp('E2.2',8)+' '+rp('E2.2',4)+' '+rp('G2.2',4)+' '+rp('C3.2',4)+' '+rp('D3.2',4)+' '+rp('B2.2',4)+' '+rp('E2.2',4)},
+ boss:{bpm:168,dr:'k.hks.h.k.hks.hs',
+  lead:'D5.2 F5.2 A5.2 D6.2 C#6.4 A5.4 Bb5.2 A5.2 G5.2 F5.2 E5.4 A4.4 D5.2 F5.2 A5.2 D6.2 E6.4 F6.4 E6.2 D6.2 C#6.2 E6.2 D6.8',
+  bass:rp('D2.2',8)+' '+rp('Bb2.2',4)+' '+rp('C3.2',4)+' '+rp('Bb2.2',4)+' '+rp('A2.2',4)+' '+rp('A2.2',4)+' '+rp('D2.2',4)},
+ shop:{bpm:100,dr:'k.......h.......',
+  lead:'A4.4 C5.4 F5.6 E5.2 D5.4 C5.4 A4.8 Bb4.4 D5.4 G5.6 F5.2 E5.4 G5.4 F5.8',
+  bass:'F2.8 C3.8 D2.8 F2.8 Bb2.8 G2.8 C3.8 F2.8'}};
+const ac=()=>actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+let noiseBuf=null;const mus={name:null,want:null,g:null,ch:null,tm:null};
+const bgmOn=()=>ROOT.bgm!==false;
+function bgmStop(){if(mus.tm)clearInterval(mus.tm);mus.tm=null;if(mus.g){const g=mus.g;try{g.gain.setTargetAtTime(0,actx.currentTime,.05)}catch(e){}setTimeout(()=>{try{g.disconnect()}catch(e){}},300)}mus.g=null;mus.name=null}
+function bgmPlay(name){
+ mus.want=name;if(!bgmOn()){bgmStop();return}
+ if(mus.name===name)return;bgmStop();
+ if(!actx||actx.state!=='running')return;
+ const tr=TR[name];if(!tr)return;
+ if(!noiseBuf){noiseBuf=actx.createBuffer(1,actx.sampleRate,actx.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}
+ const g=actx.createGain();g.gain.value=1;g.connect(actx.destination);
+ const st=60/tr.bpm/4,t0=actx.currentTime+.08;
+ mus.name=name;mus.g=g;
+ mus.ch=[{k:'square',v:.035,n:sq(tr.lead),i:0,t:t0},{k:'triangle',v:.09,n:sq(tr.bass),i:0,t:t0},{d:tr.dr,i:0,t:t0}];
+ const tone=(k,f,v,t,dur)=>{const o=actx.createOscillator(),e=actx.createGain();o.type=k;o.frequency.value=f;
+  e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(v,t+.01);e.gain.setTargetAtTime(v*.6,t+.02,.06);e.gain.linearRampToValueAtTime(0,t+dur*.92);
+  o.connect(e).connect(g);o.start(t);o.stop(t+dur)};
+ const noise=(t,hp,v,len)=>{const b=actx.createBufferSource(),f=actx.createBiquadFilter(),e=actx.createGain();b.buffer=noiseBuf;f.type='highpass';f.frequency.value=hp;
+  e.gain.setValueAtTime(v,t);e.gain.exponentialRampToValueAtTime(.001,t+len);b.connect(f).connect(e).connect(g);b.start(t);b.stop(t+len+.02)};
+ const kick=t=>{const o=actx.createOscillator(),e=actx.createGain();o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);
+  e.gain.setValueAtTime(.22,t);e.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(e).connect(g);o.start(t);o.stop(t+.16)};
+ const tick=()=>{if(!actx||mus.g!==g)return;const until=actx.currentTime+.2;
+  for(const c of mus.ch){while(c.t<until){
+   if(c.d){const x=c.d[c.i];if(x==='k')kick(c.t);else if(x==='s')noise(c.t,1500,.1,.1);else if(x==='h')noise(c.t,7000,.035,.03);c.t+=st;c.i=(c.i+1)%c.d.length}
+   else{const n=c.n[c.i];if(n.f)tone(c.k,n.f,c.v,c.t,n.l*st);c.t+=n.l*st;c.i=(c.i+1)%c.n.length}}}};
+ tick();mus.tm=setInterval(tick,40);
+}
+const BGM_OF={sTitle:'world',sPlayers:'world',sWorld:'world',sMap:'dungeon',sShop:'shop'};
+const bgmFor=id=>id==='sBattle'?(B&&B.s&&B.s.boss?'boss':'battle'):BGM_OF[id];
+document.addEventListener('pointerdown',()=>{try{const c=ac();if(c.state==='suspended')c.resume().then(()=>{if(mus.want&&!mus.name)bgmPlay(mus.want)});else if(mus.want&&!mus.name)bgmPlay(mus.want)}catch(e){}},true);
+document.addEventListener('visibilitychange',()=>{if(!actx)return;try{document.hidden?actx.suspend():actx.resume()}catch(e){}});
+const saveRoot=()=>{try{localStorage.setItem('uq',JSON.stringify(ROOT))}catch(e){}};
+function bgmBtns(){document.querySelectorAll('.bgmBtn').forEach(b=>b.textContent=`おんがく：${bgmOn()?'ON':'OFF'}`)}
+document.querySelectorAll('.bgmBtn').forEach(b=>b.onclick=()=>{ROOT.bgm=!bgmOn();saveRoot();bgmBtns();if(bgmOn()){mus.name=null;bgmPlay(mus.want||'world')}else bgmStop()});
+bgmBtns();mus.want='world';
 drawHero($('titleHero'));
 try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
 }
