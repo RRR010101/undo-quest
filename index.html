@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>うんどうクエスト</title>
+<meta name="theme-color" content="#1b1838">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="うんどうクエスト">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+/* VOICE: わくわくする冒険。子供が読めるひらがな中心、短い言葉。
+   IDEA: 昔のRPGのゲーム機。スマホ型の筐体の中にドット絵の世界。
+   PICTURE: ドット絵のワールドマップと、バトルの勇者とモンスター。
+   COLOUR and TYPE: 夜空の紺 #1b1838、草原の緑、宝箱の金 #f7d046。DotGothic16。
+   LAYOUT: 縦1カラムのスマホ画面。上にステータス、下に地図や画面。 */
+@font-face{font-family:"DotGothic16";src:url(DotGothic16-Regular.woff2) format("woff2");font-display:swap}
+:root{color-scheme:dark;--bg:#0f0d22;--win:#1b1838;--ink:#fff;--gold:#f7d046;--red:#e8483f;--grn:#4cc45a;--line:#fff}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg) radial-gradient(circle at 50% 0,#2a2460,transparent 70%);color:var(--ink);font:17px/1.6 "DotGothic16",system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;overflow-x:clip}
+.phone{width:100%;max-width:420px;height:100vh;height:100dvh;overflow:hidden;background:#000;display:flex;flex-direction:column;position:relative}
+@media(min-width:600px){body{padding:28px 0}.phone{height:800px;border-radius:36px;border:10px solid #2c2850;box-shadow:0 0 0 3px #4b4580,0 30px 60px #0008}}
+canvas.px{image-rendering:pixelated;image-rendering:crisp-edges}
+.win{background:var(--win);border:3px solid var(--line);border-radius:6px;box-shadow:inset 0 0 0 3px #000,0 4px 0 #000;padding:12px 14px}
+.bar{display:flex;gap:8px;align-items:center;padding:8px 12px;background:#000;font-size:15px}
+.bar b{color:var(--gold);font-weight:400;white-space:nowrap}
+#hud{display:none}#hud.on{display:block}
+.hp{height:12px;background:#333;border:2px solid #fff;flex:1}.hp i{display:block;height:100%;background:var(--grn);transition:width .25s}
+.xp i{background:var(--gold)}
+h1{font-size:34px;line-height:1.05;margin:0;text-align:center;color:var(--gold);text-shadow:3px 3px 0 #a33,6px 6px 0 #000;font-weight:400}
+h2{font-size:22px;margin:0 0 6px;font-weight:400}
+button{font:inherit;color:#fff;background:#3a5bd0;border:3px solid #fff;border-radius:6px;box-shadow:0 4px 0 #000;min-height:52px;padding:8px 14px;cursor:pointer;width:100%}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 #000}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+button.big{background:var(--red);font-size:24px;min-height:80px}
+button.sub{background:#444;font-size:15px;min-height:44px}
+button.sm{width:auto;min-height:44px;padding:4px 10px;font-size:14px;background:#444;flex:none}
+button:disabled{opacity:.45}
+.screen{display:none;flex:1;flex-direction:column;min-height:0;overflow-y:auto}.screen.on{display:flex}
+#sMap,#sWorld{overflow:hidden}
+.head{display:flex;gap:10px;align-items:center;padding:8px 12px;background:#1b1838;border-bottom:3px solid #fff}
+.head h2{margin:0;font-size:18px;flex:1}
+/* ワールド */
+.wwrap{flex:1;min-height:0;overflow-y:auto;background:#3a8ee8;display:flex;flex-direction:column}
+.wmap{margin:auto 0}
+.wmap{position:relative;width:100%;aspect-ratio:2/3}
+.wmap>canvas.bg{position:absolute;inset:0;width:100%;height:100%}
+.loc{position:absolute;width:64px;min-height:64px;padding:2px;transform:translate(-50%,-50%);background:#0006;border-radius:10px;z-index:2;display:flex;align-items:center;justify-content:center}
+.loc:active{transform:translate(-50%,calc(-50% + 3px))}
+.loc canvas{width:48px}
+.loc.lock canvas{filter:grayscale(1) brightness(.6)}
+.loc.lock::after{content:"🔒";position:absolute;font-size:22px}
+.loc.done{background:#2d6b34c0}
+.llab{position:absolute;transform:translate(-50%,0);font-size:13px;line-height:1.3;white-space:nowrap;text-align:center;text-shadow:2px 2px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000;pointer-events:none;z-index:2}
+.llab b{color:var(--gold);font-weight:400}
+#wHero{position:absolute;width:54px;transform:translate(-50%,-95%);z-index:3;pointer-events:none}
+.wout{animation:wout .5s steps(5) forwards}@keyframes wout{to{transform:translate(-50%,-95%) scaleX(.1) translateY(-40px);opacity:0;filter:brightness(4)}}
+.win2{animation:win2 .5s steps(5)}@keyframes win2{from{transform:translate(-50%,-95%) scaleX(.1) translateY(-40px);opacity:0;filter:brightness(4)}}
+/* ダンジョン */
+.map{flex:1;min-height:0;overflow-y:auto;position:relative;scroll-behavior:smooth}
+.mapIn{position:relative;width:100%}
+.band{position:absolute;left:0;right:0}
+.band h3{position:absolute;left:10px;top:10px;margin:0;font-weight:400;font-size:15px;background:#000a;border:2px solid #fff;border-radius:4px;padding:2px 8px}
+.mapIn svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.deco{position:absolute;width:40px;pointer-events:none}
+.node{position:absolute;width:60px;min-height:60px;padding:0;transform:translate(-50%,-50%);font-size:22px;border-radius:50%;background:#2d6b34;z-index:2}
+.node:active{transform:translate(-50%,calc(-50% + 3px))}
+.node.boss{border-radius:6px;width:70px;min-height:70px}
+.node.now{background:var(--red);animation:pulse 1s steps(2) infinite}.node.lock{background:#333;color:#888;opacity:1}
+.nlab{position:absolute;transform:translate(-50%,0);font-size:13px;white-space:nowrap;text-shadow:2px 2px 0 #000,-1px -1px 0 #000;pointer-events:none;z-index:2}
+#mapHero{position:absolute;width:66px;transform:translate(-50%,-100%);z-index:3;pointer-events:none;transition:left 1.2s linear,top 1.2s linear}
+.bob{animation:bob .5s steps(2) infinite}
+@keyframes bob{50%{margin-top:-4px}}
+@keyframes pulse{50%{box-shadow:0 4px 0 #000,0 0 0 4px var(--gold)}}
+/* こうかんじょ */
+.shopTop{display:flex;gap:14px;align-items:center;padding:14px;background:linear-gradient(#7a4a2a,#5a3420);border-bottom:3px solid #fff}
+.shopTop canvas{width:110px;background:#3f9a3a;border:3px solid #fff;border-radius:6px;flex:none}
+.items{padding:14px;display:flex;flex-direction:column;gap:10px}
+.item{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px}
+.item canvas{width:48px;background:#0005;border-radius:4px}
+.item h3{margin:0;font-size:16px;font-weight:400}.item p{margin:0;font-size:13px;color:#cfd3ff}
+.item .pr{color:var(--gold);font-size:15px}
+.item button{width:auto;min-height:44px;font-size:14px;padding:4px 10px}
+.item button.eq{background:var(--grn)}
+.tabs{display:flex;gap:8px;padding:12px 14px 0}
+.tabs button{min-height:44px;font-size:16px;background:#333}
+.tabs button.on{background:var(--red)}
+.tix{display:flex;flex-direction:column;gap:8px}
+.tk{display:flex;gap:10px;align-items:center;background:#f7d046;color:#1a1423;border:3px dashed #1a1423;border-radius:6px;padding:8px 10px;font-size:15px}
+.tk div{flex:1}.tk small{display:block;font-size:13px}
+.tk button{width:auto;min-height:44px;font-size:14px;padding:4px 10px;background:#3a8a3a}
+.spb{display:inline-block;background:var(--gold);color:#1a1423;font-size:12px;padding:0 6px;border-radius:3px;margin-right:6px;vertical-align:2px}
+#pt{width:auto;min-height:36px;padding:2px 10px;background:#000;color:var(--gold);border:2px solid var(--gold);font-size:15px;box-shadow:none;flex:none}
+.hlist{padding:14px;display:flex;flex-direction:column;gap:0}
+.hrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:10px 4px;border-bottom:2px dotted #555}
+.hrow small{color:#aaa;font-size:13px;grid-column:1}
+.hrow b{font-weight:400;grid-row:1/3;grid-column:2;align-self:center;font-size:18px;white-space:nowrap}
+.plus{color:var(--gold)}.minus{color:#ff8a8a}
+.hrow.use span,.hrow.use b{color:#7ad8ff}.hrow.use b{font-size:15px}
+.htot{padding:16px 14px 0;font-size:15px}.htot b{color:var(--gold);font-size:30px;font-weight:400}
+/* バトル */
+.scene{height:260px;position:relative;overflow:hidden;border-bottom:3px solid #fff;flex:none}
+.scene .ground{position:absolute;left:0;right:0;bottom:0;height:70px;background:repeating-linear-gradient(90deg,#0002 0 8px,transparent 8px 16px),var(--gd,#3f9a3a);border-top:6px solid var(--ge,#6ccc4f)}
+.scene canvas{position:absolute;bottom:52px}
+#heroC{left:6%;width:150px}#monC{right:10%;width:140px}
+.mhp{position:absolute;top:10px;right:10px;left:10px;display:flex;gap:8px;align-items:center;font-size:15px;text-shadow:2px 2px 0 #000}
+.atk{animation:atk .3s steps(3)}@keyframes atk{50%{transform:translateX(60px)}}
+.hit{animation:hit .3s steps(4)}@keyframes hit{25%{transform:translateX(8px);filter:brightness(3)}75%{transform:translateX(-8px)}}
+.down{animation:down .8s steps(6) forwards}@keyframes down{to{opacity:0;transform:translateY(30px) scaleY(.2)}}
+.dmg{position:absolute;color:var(--gold);font-size:28px;text-shadow:2px 2px 0 #000;animation:pop .7s forwards;pointer-events:none}
+@keyframes pop{to{transform:translateY(-50px);opacity:0}}
+.cmd{padding:14px;display:flex;flex-direction:column;gap:12px;flex:1}
+.count{font-size:52px;line-height:1;text-align:center;color:var(--gold)}
+.count small{font-size:20px;color:#fff}
+.tip{font-size:15px;color:#cfd3ff}
+.row{display:flex;gap:10px}
+.dlg{position:absolute;inset:0;background:#000c;display:none;align-items:center;justify-content:center;padding:20px;z-index:9}
+.dlg.on{display:flex}.dlg .win{width:100%;text-align:center;display:flex;flex-direction:column;gap:12px}
+.dlg p{margin:0}
+.title{flex:1;display:flex;flex-direction:column;justify-content:center;gap:20px;padding:24px;background:linear-gradient(#1b1838,#2a2460 60%,#3f9a3a 60%,#3f9a3a)}
+.title canvas{width:170px;align-self:center}
+.swatches{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.sw{min-height:52px;font-size:15px;text-shadow:2px 2px 0 #000}
+.sel{outline:4px solid var(--gold);outline-offset:2px}
+.prev{width:150px;align-self:center;background:#3f9a3a;border:3px solid #fff;border-radius:6px;padding:4px;box-sizing:content-box}
+.note{font-size:13px;color:#aaa;text-align:center}
+.slots{display:flex;flex-direction:column;gap:12px}
+.slot{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:center;text-align:left;min-height:96px;background:var(--win)}
+.slot canvas{width:72px;background:#3f9a3a;border:2px solid #fff;border-radius:4px}
+.slot b{font-weight:400;font-size:20px;display:block}.slot small{font-size:14px;color:#cfd3ff;display:block}
+.slot.empty{grid-template-columns:1fr;text-align:center;background:#2a2a3a;border-style:dashed}
+.slot.cur{outline:4px solid var(--gold);outline-offset:2px}
+input{font:inherit;font-size:18px;width:100%;min-height:48px;padding:6px 10px;border:3px solid #fff;border-radius:6px;background:#000;color:#fff}
+input:focus-visible,textarea:focus-visible{outline:3px solid var(--gold)}
+textarea{font:16px/1.4 monospace;width:100%;min-height:84px;padding:6px 10px;border:3px solid #fff;border-radius:6px;background:#000;color:#fff;word-break:break-all;resize:vertical}
+.filebtn{display:flex;align-items:center;justify-content:center;min-height:48px;background:#3a5bd0;border:3px solid #fff;border-radius:6px;box-shadow:0 4px 0 #000;cursor:pointer;font-size:16px;color:#fff}
+.filebtn input{position:absolute;width:1px;height:1px;opacity:0}
+.filebtn:focus-within{outline:3px solid var(--gold);outline-offset:3px}
+.bknote{background:#5a3a0a;border:2px solid var(--gold);border-radius:6px;padding:6px 10px;font-size:14px;text-align:center}
+.pgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pgrid button{min-height:48px;background:#2d6b34}
+.pin{text-align:center;letter-spacing:.4em;font-size:24px}
+.err{color:#ff8a8a;font-size:14px;min-height:1.4em;margin:0}
+#sParent .win{display:flex;flex-direction:column;gap:10px}
+#sParent label{font-size:14px;color:#cfd3ff}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div id="hud">
+    <div class="bar"><span><span id="hName">ゆうしゃ</span> <b id="lv">Lv1</b></span><div class="hp xp"><i id="xpBar"></i></div><button id="pt" aria-label="ポイントの りれき">0P</button><button class="sm" id="setBtn2">せってい</button></div>
+    <div class="bar" style="padding-top:0"><span>きょうの クエスト</span><b id="today">0かい</b><span style="flex:1"></span><span id="streak"></span></div>
+  </div>
+
+  <section class="screen on" id="sTitle">
+    <div class="title">
+      <h1>うんどう<br>クエスト</h1>
+      <canvas class="px" id="titleHero"></canvas>
+      <div class="win" style="text-align:center">からだを うごかして<br>モンスターを たおそう！</div>
+      <button class="big" id="startBtn">ぼうけんに でる</button>
+      <p class="note">きろくは この スマホの なかに だけ のこります。<br><a href="OFL.txt" style="color:#aaa">フォント：DotGothic16（SIL Open Font License 1.1）</a></p>
+    </div>
+  </section>
+
+  <section class="screen" id="sWorld">
+    <div class="wwrap"><div class="wmap" id="wmap"></div></div>
+  </section>
+
+  <section class="screen" id="sMap">
+    <div class="head"><button class="sm" id="toWorld1">← ワールド</button><h2 id="dName"></h2></div>
+    <div class="map" id="map"><div class="mapIn" id="mapIn"></div></div>
+  </section>
+
+  <section class="screen" id="sShop">
+    <div class="head"><button class="sm" id="toWorld2">← ワールド</button><h2>ポイント こうかんじょ</h2></div>
+    <div class="shopTop"><canvas class="px" id="shopHero"></canvas>
+      <div>いらっしゃい！<br>うんどうで ためた ポイントで そうびと こうかん できるよ。</div></div>
+    <div class="tabs"><button id="tabEq" class="on">そうび</button><button id="tabRw">ごほうび</button></div>
+    <div class="items" id="items"></div>
+  </section>
+
+  <section class="screen" id="sHist">
+    <div class="head"><button class="sm" id="histBack">← もどる</button><h2>ポイントの りれき</h2></div>
+    <div class="htot">いまの ポイント<br><b id="hTot"></b></div>
+    <div class="hlist" id="hList"></div>
+  </section>
+
+  <section class="screen" id="sParent">
+    <div class="head"><button class="sm" id="parentBack">← もどる</button><h2>おうちのひと メニュー</h2></div>
+    <div class="cmd">
+      <div class="win"><h2 style="font-size:17px">ポイントを ふやす</h2>
+        <div class="pgrid"><button data-add="10">+10P</button><button data-add="50">+50P</button><button data-add="100">+100P</button></div>
+        <label for="addN">すきな かず</label><input id="addN" type="number" inputmode="numeric" min="1" max="10000" placeholder="れい：30">
+        <label for="addR">りゆう（りれきに のります）</label><input id="addR" type="text" maxlength="30" placeholder="れい：おてつだい ありがとう">
+        <button id="addBtn">この かずを ふやす</button>
+        <p class="note" id="addNow"></p></div>
+      <div class="win"><h2 style="font-size:17px">そうびを あげる</h2><div class="items" id="giftEq" style="padding:0"></div></div>
+      <div class="win"><h2 style="font-size:17px">この プレイヤーの データ</h2><button class="sub" id="delPl" style="background:#7a2a2a">この プレイヤーを けす</button></div>
+      <div class="win"><h2 style="font-size:17px">バックアップ</h2>
+        <p class="tip" id="bkInfo" style="margin:0"></p>
+        <button id="bkFile">ファイルに かきだす</button>
+        <button class="sub" id="bkCopy">もじで コピーする</button>
+        <textarea id="bkOut" readonly hidden aria-label="バックアップの もじ"></textarea>
+        <h2 style="font-size:16px;margin-top:8px">バックアップから もどす</h2>
+        <label class="filebtn">ファイルを えらんで もどす<input type="file" id="bkIn" accept=".txt,.json,text/plain"></label>
+        <label for="bkPaste">コピーした もじを はりつけて もどす</label>
+        <textarea id="bkPaste" placeholder="UQ1- から はじまる もじ"></textarea>
+        <button class="sub" id="bkLoad">はりつけた もじで もどす</button>
+        <p class="note">3にんぶん まとめて ほぞん します。あんしょうばんごうは ふくまれません。<br>ファイルや もじは、グーグルドライブ・メモ・じぶんあての メールなどに ほかんして ください。</p></div>
+      <div class="win"><h2 style="font-size:17px">あんしょうばんごう</h2><button class="sub" id="pinChg">あんしょうばんごうを かえる</button></div>
+    </div>
+  </section>
+
+  <section class="screen" id="sPlayers">
+    <div class="cmd">
+      <h2 style="text-align:center">だれが あそぶ？</h2>
+      <div class="bknote" id="bkNag" hidden></div>
+      <div class="slots" id="slots"></div>
+      <button class="sub" id="plBack">タイトルへ もどる</button>
+    </div>
+  </section>
+
+  <section class="screen" id="sSet">
+    <div class="cmd">
+      <h2 style="text-align:center">ゆうしゃを えらぼう</h2>
+      <canvas class="px prev" id="prevC"></canvas>
+      <div class="win"><label for="nameIn"><h2 style="font-size:17px">なまえ</h2></label><input id="nameIn" type="text" maxlength="8" placeholder="なまえを いれてね" autocomplete="off"></div>
+      <div class="win"><h2 style="font-size:17px">どっち？</h2>
+        <div class="row"><button id="gBoy">おとこのこ</button><button id="gGirl">おんなのこ</button></div></div>
+      <div class="win"><h2 style="font-size:17px">ふくの いろ</h2>
+        <div class="swatches" id="sws"></div></div>
+      <div class="win"><h2 style="font-size:17px">そうび</h2>
+        <div class="items" id="setEq" style="padding:0"></div></div>
+      <button class="big" id="setOk">これで けってい！</button>
+      <button class="sub" id="plSwitch">プレイヤー きりかえ</button>
+      <button class="sub" id="parentBtn">おうちのひと メニュー（あんしょうばんごう）</button>
+    </div>
+  </section>
+
+  <section class="screen" id="sBattle">
+    <div class="scene" id="scene">
+      <div class="mhp"><span id="mName"></span><div class="hp"><i id="mHp"></i></div></div>
+      <div class="ground"></div>
+      <canvas class="px" id="heroC"></canvas>
+      <canvas class="px" id="monC"></canvas>
+    </div>
+    <div class="cmd">
+      <div class="win"><h2 id="exName"></h2><div class="tip" id="exTip"></div></div>
+      <div class="count" id="count"></div>
+      <button class="big" id="actBtn"></button>
+      <div class="row"><button class="sub" id="runBtn">にげる（マップへ）</button></div>
+    </div>
+  </section>
+
+  <div class="dlg" id="dlg"><div class="win" id="dlgBody"></div></div>
+</div>
+
+<script>
+{
+// ---------- ドット絵 ----------
+const PAL={k:'#1a1423',s:'#f6c9a0',h:'#7a3b1d',r:'#d9433b',y:'#f7d046',b:'#3a5bd0',w:'#ffffff',o:'#8a8a99',n:'#6a3a1a',p:'#7a3bd0',e:'#b0b0c0'};
+const COLORS=[['あか','#d9433b','#f7d046'],['あお','#3a6ee0','#ffffff'],['みどり','#3fa84a','#f7d046'],['ピンク','#ee6fa8','#ffffff'],['むらさき','#8a4bd0','#f7d046'],['オレンジ','#f08a2a','#ffffff']];
+const SPR={
+hero:["....k..kk..k....", "...khkkhhkkhk...", "..khhhhhhhhhhk..", "..khlhhhhhhhhk..", "..khhhhhhhhhhk..", "..kyyyyyyyyyyk..", "..khkksssskkhk..", "..kskwsssskwsk..", "..kskksssskksk..", "..kssssssssssk..", "...ksssnnsssk...", "....kksssskk....", "..kkyyyyyyyykk..", ".ksrrrrrrrrrrsk.", ".ksrzrrrrrrzrsk.", "..kknnnynnnnkk..", "...kbbbkkbbbk...", "...kbbk..kbbk...", "..knnnk..knnnk..", "..kkkkk..kkkkk.."],
+girl:[".....kk..kk.....", "....krrkkrrk....", "...kkhkrrkhkk...", "..khhhhkkhhhhk..", ".khhlhhhhhhhhhk.", ".khhhhhhhhhhhhk.", "khhhssshhssshhhk", "khhsssssssssshhk", "khsskwsssskwsshk", "khsskksssskksshk", "khsqqssnnssqqshk", "khhksssssssskhhk", "khk.krrrrrrk.khk", "kk.ksrrwwrrsk.kk", "...ksrrrrrrrsk..", "...krryyyyyyrk..", "..krrrrrrrrrrk..", ".krzrrzrrzrrzrk.", ".kkkkkkkkkkkkkk.", "....kssk..kssk..", "....knnk..knnk.."],
+hatS:["....k.....","...kpk....","..kpppk...","..kpypk...",".kpppppk..","kkkkkkkkkk"],
+crownS:["y..yy..y","yyyyyyyy","yryyyyry"],
+capeS:[".kkkkkkkkkkkk.","kppppppppppppk","kppppppppppppk","kppppppppppppk","kppppppppppppk",".kppppppppppk."],
+sword:["..k..",".kek.",".kek.",".kek.",".kek.","kyyyk","..n..","..k.."],
+shield:[".kkk.","kbybk","kyyyk","kbybk",".kbk.","..k.."],
+hat:["......k.......", ".....kpk......", "....kpppk.....", "....kpypk.....", "...kpppppk....", "..kpppppppk...", "kkkkkkkkkkkkkk"],
+helm:["....kkkkkk....","..kkppppppkk..",".kpppppppplpk.",".kppppppppplk.","kkppppyyppppkk","kkkkkkkkkkkkkk"],
+crown:["y...yy...y", "yy.yyyy.yy", "yyyyyyyyyy", "yryyyyyyry"],
+cape:[".kkkkkkkkkkkkkkkk.", "kppppppppppppppppk", "kppppppppppppppppk", "kppppppppppppppppk", "kppppppppppppppppk", "kppppppppppppppppk", ".kppppppppppppppk."],
+slime:["................","................","................","................","................","......kkkk......","....kkggggkk....","...kggggggwgk...","..kggkggggkgwk..","..kggkggggkggk..","..kgggggggggggk.","..kgggkkkkgggk..","...kggggggggk...","....kkkkkkkk...."],
+king:["....y.y..y.y....","....yyyyyyyy....","....yryyyyry....","...kkkkkkkkkk...","..kggggggggggk..",".kggggggggggwgk.",".kggkkggggkkgwk.",".kggkkggggkkggk.","kgggggggggggggk.","kgggggggggggggk.","kggggkkkkkkgggk.","kgggggggggggggk.",".kggggggggggggk.","..kkkkkkkkkkkk.."],
+shroom:["................","................","................","................","....kkkkkk......","..kkggggggkk....",".kggwwggggggk...","kgggwggggwwgk...","kgggggggggwwgk..","kkkkkkkkkkkkkk..","..ksssssssk.....","..kskssksk......","..kssssssk......","...kkkkkk......."],
+ghost:["................","................","....kkkkk.......","...kgggggk......","..kgggggggk.....","..kgkgggkgk.....","..kgkgggkgk.....","..kgggggggk.....","..kgggkgggk.....","..kgggggggk.....","..kgggggggk.....","..kgkgkgkgk.....","...k.k.k.k......","................"],
+golem:["..kkkkkkkkkk....",".kggggggggggk...",".kgykggggykgk...",".kggggggggggk...","kkgdddddddggkk..","kgkggggggggkgk..","kgkggdggggdkgk..","kgkggggggggkgk..","kkkggggggggkkk..","..kgggkkgggk....","..kgggk.kgggk...","..kgggk.kgggk...","..kkkkk.kkkkk...","................"],
+dragon:["..........kk....",".........kggk...","..k.....kgggyk..",".kgk...kggkgggk.","kgggk..kgggggdk.","kggggkkggggkkk..",".kggggggggk.....","..kgggwwggk.....","..kggwwwwggk....","..kggwwwwgggk.kk","...kggggggggkkgk","...kgkkkgk.kggk.","...kk..kk...kk..","................"],
+tree:["...kkkk...","..kggggk..",".kgggwggk.","kgggggwggk","kggggggggk",".kggggggk.","..kkhhkk..","....hh....","...khhk..."],
+rock:["..........","...kkkk...","..kggggk..",".kgggwgk..",".kggggggk.","kgggggggk.","kkkkkkkkk."],
+tower:["k.k.kk.k.k","kkkkkkkkkk",".kggggggk.",".kgkggkgk.",".kggggggk.",".kggkkggk.",".kggkkggk.",".kkkkkkkk."],
+house:["......kk......","....kkrrkk....","..kkrrrrrrkk..",".krrrrrrrrrrk.","kkkkkkkkkkkkkk",".kwwwwwwwwwwk.",".kwkkwwwwyywk.",".kwkkwwwwyywk.",".kwnnwwwwwwwk.",".kwnnwwwwwwwk.",".kkkkkkkkkkkk."],
+cave:[".....kkkk.....","...kkggggkk...","..kggggwgggk..",".kggggggggggk.",".kgggkkkkgggk.","kggggkkkkggggk","kgggkkkkkkgggk","kgggkkkkkkgggk","kkkkkkkkkkkkkk"],
+spire:["......kk......",".....kyyk.....",".....kggk.....","....kggggk....","....kgkkgk....","....kggggk....","...kggggggk...","...kgkggkgk...","...kggggggk...","..kggggggggk..","..kggkkkkggk..","..kkkkkkkkkk.."],
+castle:["k.k......k.k..","kkk..kk..kkk..","kgk.kggk.kgk..","kgkkggggkkgk..","kgggggggggggk.","kgkgggggggkgk.","kgggggkggggk..","kggggkkkggggk.","kggggkkkggggk.","kkkkkkkkkkkkk."],
+tv:["kkkkkkkkkk","kbbbbbbbbk","kbwbbbbbbk","kbbbbbbbbk","kbbbbbbbbk","kkkkkkkkkk","...kkkk..."],
+coin:["..kkkk..",".kyyyyk.","kyywyyyk","kywyyyyk","kyyyyyyk","kyyyyynk",".knyynk.","..kkkk.."],
+gem:["..kkkkk..",".kwcccck.","kwcccccck","kkkkkkkkk",".kccccck.","..kccck..","...kck...","....k...."],
+tTree:["..kkkk..",".kggggk.","kggwgggk","kggggggk",".kggggk.","..kkkk..","...hh...","...hh..."],
+tMtn:["...kk...","..kwwk..",".kwwook.",".koooook","koooooook","kooooook","kooooook","kkkkkkkk"]};
+function stamp(c,name,pal,ox,oy){const p={...PAL,...pal};SPR[name].forEach((r,y)=>[...r].forEach((ch,x)=>{if(p[ch]){c.fillStyle=p[ch];c.fillRect(ox+x,oy+y,1,1)}}))}
+function draw(cv,name,pal){const rows=SPR[name];cv.width=rows[0].length;cv.height=rows.length;const c=cv.getContext('2d');c.clearRect(0,0,cv.width,cv.height);stamp(c,name,pal,0,0)}
+
+// ---------- データ ----------
+const EX={
+ squat:{n:'スクワット',t:'rep',c:20,tip:'あしを かたはばに ひらいて、いすに すわるように ゆっくり しゃがもう。'},
+ jump:{n:'その場ジャンプ',t:'rep',c:20,tip:'ぴょんぴょん とぼう。ひざを やわらかく つかってね。'},
+ run:{n:'その場かけあし',t:'sec',c:30,tip:'ももを たかく あげて、うでも ふって はしろう！'},
+ arm:{n:'うでまわし',t:'rep',c:20,tip:'りょううでを おおきく まえに ぐるん。'},
+ leg:{n:'かたあしだち',t:'sec',c:20,tip:'ふらふらしても だいじょうぶ。かべの ちかくで やろう。'},
+ stretch:{n:'バンザイのび',t:'rep',c:5,tip:'うでを うえに ぐーんと のばして、3つ かぞえよう。'},
+ frog:{n:'カエルジャンプ',t:'rep',c:8,tip:'しゃがんで、まえに ぴょーん！ まわりに ものが ないか みてね。'},
+ crunch:{n:'ふっきん',t:'rep',c:10,tip:'あおむけで ひざを たてて、おへそを のぞきこむように せなかを すこし まるめよう。くびを ひっぱらないでね。'},
+ plank:{n:'プランク',t:'sec',c:20,tip:'ひじと つまさきで からだを まっすぐ ささえよう。おしりが あがったり さがったり しないように。'},
+ bike:{n:'じてんしゃこぎ',t:'sec',c:20,tip:'あおむけで あしを うかせて、じてんしゃを こぐように ぐるぐる まわそう。'},
+ boat:{n:'ボートのポーズ',t:'sec',c:10,tip:'すわって ひざを まげたまま あしを うかせ、からだで V の かたちを つくろう。てを まえに のばしても OK。'},
+ star:{n:'ほしジャンプ',t:'rep',c:20,tip:'とびながら てあしを ひろげて ほしの かたちに！'}};
+const A=(n,bg,gd,ge,deco,dg,st)=>({n,bg,gd,ge,deco,dg,st});
+const M=(m,sp,pal,ex,boss)=>({m,sp,pal,ex,boss});
+const DUN=[
+ {n:'はじまりの ダンジョン',icon:'cave',ip:{g:'#9a8a7a'},x:8,y:13,areas:[
+  A('そうげん','linear-gradient(#6ec3ff,#bfe8ff)','#3f9a3a','#6ccc4f','tree','#2f8a34',[M('スライム','slime',{g:'#4cc45a'},['squat']),M('あおスライム','slime',{g:'#3fa0e8'},['jump']),M('スライムキング','king',{g:'#4cc45a'},['arm','squat'],1)]),
+  A('きのこの もり','linear-gradient(#245a3a,#4b8a52)','#5b3b22','#3a7a33','tree','#3a7a33',[M('おばけキノコ','shroom',{g:'#d9433b'},['run']),M('どくキノコ','shroom',{g:'#9a4bd0'},['frog','crunch']),M('もりの おばけ','ghost',{g:'#e6e6ff'},['leg','jump'],1)]),
+  A('いわの どうくつ','linear-gradient(#1a1a2a,#3a3450)','#4a4458','#6e6880','rock','#9a96b0',[M('くらやみおばけ','ghost',{g:'#9aa0ff'},['star','bike']),M('いわスライム','slime',{g:'#8a8a99'},['squat','stretch']),M('ゴーレム','golem',{g:'#9a8a7a',d:'#5a4a3a'},['run','frog'],1)]),
+  A('ほのおの とりで','linear-gradient(#3a1028,#a8402a)','#3a2a2a','#7a3a2a','tower','#8a3a2a',[M('ほのおスライム','slime',{g:'#f07a2a'},['jump','arm']),M('ほのおゴーレム','golem',{g:'#a84a2a',d:'#5a1a0a'},['plank','leg']),M('ドラゴン','dragon',{g:'#d9433b',d:'#7a1a1a'},['squat','run','star'],1)])]},
+ {n:'こおりの どうくつ',icon:'cave',ip:{g:'#a8d8f0'},x:2,y:9,areas:[
+  A('つめたい いりぐち','linear-gradient(#a8d8f0,#e8f6ff)','#c8e8f8','#ffffff','rock','#e0f4ff',[M('こおりスライム','slime',{g:'#8ad0f0'},['run']),M('ゆきおばけ','ghost',{g:'#ffffff'},['crunch']),M('こおりキノコ','shroom',{g:'#5aa8e8'},['star','arm'],1)]),
+  A('こおりの おく','linear-gradient(#2a4a7a,#6a9ad0)','#8ab8e0','#d0ecff','rock','#c0e0ff',[M('つららスライム','slime',{g:'#c0e8ff'},['frog']),M('こおりゴーレム','golem',{g:'#a8d8f0',d:'#5a8ab0'},['plank','jump']),M('ゆきの おう','king',{g:'#e0f4ff'},['squat','run','stretch'],1)])]},
+ {n:'そらの とう',icon:'spire',ip:{g:'#f0e6c8'},x:9,y:5,areas:[
+  A('くもの かいだん','linear-gradient(#7ac8ff,#ffffff)','#e8e8f0','#ffffff','tower','#ffffff',[M('くもスライム','slime',{g:'#f0f0ff'},['jump']),M('かぜの おばけ','ghost',{g:'#b0f0d0'},['bike']),M('てんくうゴーレム','golem',{g:'#f0d890',d:'#b09040'},['star','squat'],1)]),
+  A('とうの てっぺん','linear-gradient(#f0a060,#ffe0a0)','#c8a060','#f0d090','tower','#f0d090',[M('ひかりキノコ','shroom',{g:'#f7d046'},['frog','arm']),M('かみなりスライム','slime',{g:'#f7e046'},['star','boat']),M('そらの ドラゴン','dragon',{g:'#3fa0e8',d:'#1a4a8a'},['jump','run','squat'],1)])]},
+ {n:'まおうの しろ',icon:'castle',ip:{g:'#6a4a7a'},x:5,y:2,areas:[
+  A('やみの もん','linear-gradient(#1a0a28,#4a2050)','#2a1a3a','#5a3a6a','tower','#6a4a7a',[M('やみスライム','slime',{g:'#6a3a9a'},['squat','jump']),M('やみの おばけ','ghost',{g:'#c080ff'},['crunch','run']),M('まもりの ゴーレム','golem',{g:'#3a2a4a',d:'#1a0a2a'},['star','leg'],1)]),
+  A('まおうの ま','linear-gradient(#300818,#802030)','#3a1a1a','#7a2a2a','tower','#8a3a2a',[M('まおうスライム','king',{g:'#5a2a8a'},['frog','run']),M('ほのおの おばけ','ghost',{g:'#ff8a4a'},['squat','star']),M('まおう ドラゴン','dragon',{g:'#3a2a5a',d:'#1a0a2a',w:'#d9433b'},['squat','run','plank','star'],1)])]}];
+const stagesOf=d=>DUN[d].areas.flatMap((a,ai)=>a.st.map(s=>({...s,a:ai})));
+const SHOP={x:2,y:15};
+const LOCS=[{t:'shop',...SHOP},...DUN.map((d,i)=>({t:'dun',i,x:d.x,y:d.y}))];
+const WOOD={e:'#c08a4a',y:'#7a4a20',n:'#5a3418'};
+const ITEMS=[
+ {id:'sword',slot:'weapon',spr:'sword',pal:WOOD,n:'きの つるぎ',p:10,d:'きを けずって つくった つるぎ'},
+ {id:'shield',slot:'shield',spr:'shield',pal:{b:'#a0703a',y:'#d0a060'},n:'きの たて',p:10,d:'まるい いたの たて'},
+ {id:'helm',slot:'head',spr:'helm',pal:{p:'#a0703a',l:'#d0a060',y:'#6a4020'},n:'きの かぶと',p:10,d:'あたまを まもる きの かぶと'},
+ {id:'cape',slot:'cape',spr:'cape',pal:{p:'#7a5a2a'},n:'きの マント',p:10,d:'きの かわで つくった マント'},
+ {id:'crown',slot:'head',spr:'crown',n:'きんの かんむり',p:300,d:'おうさまの しるし',sp:1}];
+const REW=[
+ {id:'tv',spr:'tv',n:'どうが・ゲーム 30ぷん',p:50,d:'すきな どうがや ゲームを 30ぷん'},
+ {id:'yen',spr:'coin',n:'おこづかい 100えん',p:300,d:'100えん もらえる'},
+ {id:'stamp',spr:'gem',pal:{c:'#5ad0f0'},n:'デジタルアイテム',p:500,d:'すきな デジタルアイテムを 1つ'}];
+
+// ---------- セーブ ----------
+const today=()=>new Date().toLocaleDateString('ja-JP');
+const fresh=()=>({name:'',gender:'',color:0,prog:[0,0,0,0],at:1,xp:0,coin:0,own:[],eq:{},log:[],tix:[],day:'',done:0,last:'',streak:0});
+let ROOT={cur:0,slots:[null,null,null],pin:''};
+try{const o=JSON.parse(localStorage.getItem('uq')||'{}');
+ if(o.slots){ROOT=Object.assign(ROOT,o)}
+ else if(Object.keys(o).length){if(typeof o.clear==='number'&&!o.prog)o.prog=[o.clear,0,0,0];delete o.clear;ROOT.pin=o.pin||'';delete o.pin;ROOT.slots[0]=o}}catch(e){}
+let S=fresh();
+const save=()=>{ROOT.slots[ROOT.cur]=S;try{localStorage.setItem('uq',JSON.stringify(ROOT))}catch(e){}};
+const loadSlot=i=>{ROOT.cur=i;S=Object.assign(fresh(),ROOT.slots[i]||{});
+ S.own=[...new Set(S.own.map(o=>({hat:'helm',gsword:'sword'})[o]||o))].filter(o=>ITEMS.some(it=>it.id===o));
+ for(const k in S.eq){const v=({hat:'helm',gsword:'sword'})[S.eq[k]]||S.eq[k];S.eq[k]=ITEMS.some(it=>it.id===v)?v:null}
+ S.tix=S.tix.filter(t=>!t.used);if(S.day!==today()){S.day=today();S.done=0}};
+if(ROOT.slots[ROOT.cur])loadSlot(ROOT.cur);
+const now=()=>{const d=new Date();return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`};
+const addLog=(d,v,k)=>{S.log.unshift(k?{t:now(),d,v,k}:{t:now(),d,v});S.log=S.log.slice(0,300)};
+const lvOf=xp=>Math.floor(Math.sqrt(xp/20))+1;
+const isOpen=i=>i===0||S.prog[i-1]>=stagesOf(i-1).length;
+const isDone=i=>S.prog[i]>=stagesOf(i).length;
+
+const shade=(h,f=.72)=>'#'+[1,3,5].map(i=>Math.round(parseInt(h.substr(i,2),16)*f).toString(16).padStart(2,'0')).join('');
+function drawHero(cv,st=S){
+ const c=COLORS[st.color]||COLORS[0],g=st.gender==='girl';cv.width=24;cv.height=26;const x=cv.getContext('2d');x.clearRect(0,0,24,26);
+ const pal={r:c[1],y:c[2],z:shade(c[1]),h:g?'#9a4a24':'#3a2418',l:g?'#e0985a':'#7a5238',q:'#ff9ab0',b:'#2a3a70'};
+ const O={sword:g?[14,13]:[15,13],shield:g?[5,17]:[3,17],hat:[5,2],helm:[5,3],crown:[7,3],cape:[3,17]};
+ const it=sl=>ITEMS.find(i=>i.id===(st.eq||{})[sl]);
+ const lay=sl=>{const i=it(sl);if(i){const o=O[i.spr];stamp(x,i.spr,i.pal||{},o[0],o[1])}};
+ lay('cape');stamp(x,g?'girl':'hero',pal,4,5);lay('shield');lay('weapon');lay('head');
+}
+
+// ---------- 共通 ----------
+const $=id=>document.getElementById(id);
+const show=id=>{document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));$('hud').classList.toggle('on',['sWorld','sMap','sShop','sHist'].includes(id));updHud()};
+let shopTab='eq',histBack='sWorld',actx,B=null,timer=null,walkFrom=null,cd=0,walking=false,dunClear=false,back='sTitle';
+const beep=(f=660,d=.08)=>{try{actx=actx||new AudioContext();const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=f;g.gain.value=.05;o.connect(g).connect(actx.destination);o.start();o.stop(actx.currentTime+d)}catch(e){}};
+function dialog(html,btns){$('dlgBody').innerHTML=html+btns.map((b,i)=>`<button id="db${i}" ${i?'class="sub"':''}>${b[0]}</button>`).join('');
+ btns.forEach((b,i)=>$('db'+i).onclick=()=>{$('dlg').classList.remove('on');b[1]&&b[1]()});$('dlg').classList.add('on');$('db0').focus()}
+function updHud(){
+ const lv=lvOf(S.xp),cur=20*(lv-1)**2,nxt=20*lv**2;
+ $('hName').textContent=S.name||'ゆうしゃ';$('lv').textContent='Lv'+lv;$('xpBar').style.width=((S.xp-cur)/(nxt-cur)*100)+'%';
+ $('pt').textContent=S.coin+'P';$('today').textContent=S.done+'かい';
+ $('streak').textContent=S.streak?`🔥${S.streak}にち れんぞく`:'';
+}
+
+// ---------- ワールドマップ ----------
+const TW=12,TH=18;
+let rnd=11;const R=()=>(rnd=(rnd*9301+49297)%233280)/233280;
+const CH=[];const LIDX=[];
+{let [cx,cy]=[LOCS[0].x,LOCS[0].y];CH.push([cx,cy]);LIDX.push(0);
+ for(let i=1;i<LOCS.length;i++){const t=LOCS[i];while(cx!==t.x){cx+=Math.sign(t.x-cx);CH.push([cx,cy])}while(cy!==t.y){cy+=Math.sign(t.y-cy);CH.push([cx,cy])}LIDX.push(CH.length-1)}}
+const worldCanvas=(()=>{
+ const cv=document.createElement('canvas');cv.className='px bg';cv.width=TW*8;cv.height=TH*8;const c=cv.getContext('2d');
+ const onPath=(x,y)=>CH.some(p=>p[0]===x&&p[1]===y);
+ const near=(x,y)=>CH.some(p=>Math.abs(p[0]-x)<=1&&Math.abs(p[1]-y)<=1);
+ const T=[];for(let y=0;y<TH;y++){T[y]=[];for(let x=0;x<TW;x++){const e=((x-5.5)/5.7)**2+((y-8.5)/8.7)**2;T[y][x]=e>0.88+(R()-.5)*.22?'w':'g'}}
+ for(let y=0;y<TH;y++)for(let x=0;x<TW;x++){if(onPath(x,y)){T[y][x]='p';continue}if(T[y][x]!=='g')continue;
+  const wn=[[1,0],[-1,0],[0,1],[0,-1]].some(([a,b])=>(T[y+b]||[])[x+a]==='w'||y+b<0||y+b>=TH||x+a<0||x+a>=TW);
+  if(wn){T[y][x]='s';continue}
+  if(near(x,y))continue;
+  if(y<=5&&R()<.55)T[y][x]='m';else if(R()<.35)T[y][x]='t'}
+ for(let y=0;y<TH;y++)for(let x=0;x<TW;x++){const t=T[y][x],ox=x*8,oy=y*8;
+  const fill=(col)=>{c.fillStyle=col;c.fillRect(ox,oy,8,8)};const px=(a,b,col)=>{c.fillStyle=col;c.fillRect(ox+a,oy+b,1,1)};
+  if(t==='w'){fill('#3a8ee8');if((x+y)%2){px(1,2,'#8ac8ff');px(2,2,'#8ac8ff')}else{px(5,5,'#8ac8ff');px(6,5,'#8ac8ff')}}
+  else if(t==='s'){fill('#ecd890');px(2,2,'#d0b870');px(6,5,'#d0b870')}
+  else if(t==='p'){fill('#5cbf4a');c.fillStyle='#e0bc78';c.fillRect(ox+1,oy+1,6,6);px(3,3,'#b8905a');px(5,5,'#b8905a')}
+  else{fill('#5cbf4a');px(2,3,'#4aa83c');px(6,6,'#4aa83c');
+   if(t==='t')stamp(c,'tTree',{g:'#2f8a34',w:'#6ccc4f'},ox,oy);
+   if(t==='m')stamp(c,'tMtn',{o:'#9a8a7a'},ox,oy)}}
+ for(let i=0;i<CH.length-1;i++){const [a,b]=CH[i],[d,e]=CH[i+1];c.fillStyle='#e0bc78';c.fillRect(Math.min(a,d)*8+1,Math.min(b,e)*8+1,Math.abs(a-d)*8+6,Math.abs(b-e)*8+6)}
+ return cv})();
+const tilePos=([x,y])=>({left:(x+.5)/TW*100+'%',top:(y+.5)/TH*100+'%'});
+function renderWorld(){
+ const w=$('wmap');w.innerHTML='';w.append(worldCanvas);
+ let h='';
+ LOCS.forEach((L,i)=>{const p=tilePos([L.x,L.y]);
+  if(L.t==='shop'){h+=`<button class="loc" data-i="${i}" style="left:${p.left};top:${p.top}" aria-label="ポイントこうかんじょ"><canvas class="px" data-s="house"></canvas></button><div class="llab" style="left:${p.left};top:calc(${p.top} + 30px)">ポイント<br>こうかんじょ</div>`;return}
+  const d=DUN[L.i],open=isOpen(L.i),done=isDone(L.i),n=stagesOf(L.i).length;
+  h+=`<button class="loc ${open?'':'lock'} ${done?'done':''}" data-i="${i}" style="left:${p.left};top:${p.top}" aria-label="${d.n}"><canvas class="px" data-s="${d.icon}" data-d="${L.i}"></canvas></button>
+  <div class="llab" style="left:${p.left};top:calc(${p.top} + 30px)">${open?d.n:'？？？'}<br><b>${open?(done?'★クリア':`${Math.min(S.prog[L.i],n)}/${n}`):''}</b></div>`});
+ h+=`<canvas class="px bob" id="wHero"></canvas>`;
+ w.insertAdjacentHTML('beforeend',h);
+ w.querySelectorAll('.loc canvas').forEach(c=>draw(c,c.dataset.s,c.dataset.d?DUN[+c.dataset.d].ip:{}));
+ drawHero($('wHero'));Object.assign($('wHero').style,tilePos(CH[LIDX[S.at]]));
+ w.querySelectorAll('.loc').forEach(b=>b.onclick=()=>goLoc(+b.dataset.i));
+ requestAnimationFrame(()=>{const ww=document.querySelector('.wwrap');const y=(CH[LIDX[S.at]][1]+.5)/TH*w.clientHeight;ww.scrollTop=y-ww.clientHeight/2});
+}
+function goLoc(i){
+ if(walking)return;const L=LOCS[i];
+ if(L.t==='dun'&&!isOpen(L.i)){beep(200,.15);dialog(`<h2>まだ はいれない！</h2><p>「${DUN[L.i-1].n}」を<br>クリアすると ひらくよ。</p>`,[['わかった']]);return}
+ const a=LIDX[S.at],b=LIDX[i];const steps=a<=b?CH.slice(a+1,b+1):CH.slice(b,a).reverse();
+ walking=true;let k=0;const hero=$('wHero');
+ const arrive=()=>{walking=false;S.at=i;save();openLoc(i)};
+ if(!steps.length){arrive();return}
+ if(L.t==='shop'||isDone(L.i)){hero.classList.remove('bob');hero.classList.add('wout');[880,1100,1320,1760].forEach((f,j)=>setTimeout(()=>beep(f,.06),j*90));
+  setTimeout(()=>{Object.assign(hero.style,tilePos(CH[b]));hero.classList.remove('wout');hero.classList.add('win2');
+   setTimeout(()=>{hero.classList.remove('win2');hero.classList.add('bob');arrive()},600)},550);return}
+ const t=setInterval(()=>{Object.assign(hero.style,tilePos(steps[k]));if(k%2===0)beep(330,.03);k++;if(k>=steps.length){clearInterval(t);setTimeout(arrive,200)}},140);
+}
+function openLoc(i){const L=LOCS[i];
+ if(L.t==='shop'){renderShop();show('sShop');return}
+ const d=DUN[L.i],n=stagesOf(L.i).length;
+ dialog(`<h2>${d.n}</h2><p>ステージ ${n}こ<br>${isDone(L.i)?'★クリアずみ。また あそべるよ！':`いま ${Math.min(S.prog[L.i],n)}/${n}`}</p>`,[['はいる！',()=>{cd=L.i;walkFrom=null;renderMap();show('sMap')}],['やめる']]);
+}
+
+// ---------- ダンジョンマップ ----------
+function renderMap(){
+ const D=DUN[cd],ST=stagesOf(cd),AR=D.areas,clear=S.prog[cd];
+ $('dName').textContent=D.n;
+ const BH=380,H=BH*AR.length,XS=[22,72,34,74,26,68,30,76,24,70,32,52],YS=[300,190,80];
+ const pos=k=>{const a=Math.floor(k/3);return{x:XS[k%12],y:(AR.length-1-a)*BH+YS[k%3]}};
+ rnd=7+cd;
+ let h=AR.map((a,ai)=>`<div class="band" style="top:${(AR.length-1-ai)*BH}px;height:${BH}px;background:${a.bg}"><h3>エリア${ai+1} ${a.n}</h3></div>`).join('');
+ const pts=ST.map((_,k)=>pos(k));
+ const line=(arr,c,dash)=>`<polyline points="${arr.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="${c}" stroke-width="${dash?8:16}" ${dash?'stroke-dasharray="8 10"':''} stroke-linecap="square" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+ const done=pts.slice(0,Math.min(clear,ST.length-1)+1);
+ h+=`<svg viewBox="0 0 100 ${H}" preserveAspectRatio="none">${line(pts,'#000a')}${line(pts,'#f5e6b8',1)}${done.length>1?line(done,'#f7d046'):''}</svg>`;
+ AR.forEach((a,ai)=>{for(let j=0;j<5;j++){const x=4+R()*84,y=(AR.length-1-ai)*BH+40+R()*300;
+  if(pts.some(p=>Math.abs(p.x-x)<16&&Math.abs(p.y-y)<60))continue;
+  h+=`<canvas class="px deco" data-s="${a.deco}" data-a="${ai}" style="left:${x}%;top:${y}px"></canvas>`}});
+ ST.forEach((s,k)=>{const p=pos(k),st=k<clear?'clear':k===clear?'now':'lock';
+  h+=`<button class="node ${st} ${s.boss?'boss':''}" data-k="${k}" style="left:${p.x}%;top:${p.y}px" ${st==='lock'?'disabled':''} aria-label="ステージ${k+1}">${st==='clear'?'★':st==='lock'?'🔒':s.boss?'👑':k+1}</button>
+  <div class="nlab" style="left:${p.x}%;top:${p.y+(s.boss?40:36)}px">${st==='lock'?'？？？':s.m}</div>`});
+ h+=`<canvas class="px bob" id="mapHero"></canvas>`;
+ $('mapIn').style.height=H+'px';$('mapIn').innerHTML=h;
+ document.querySelectorAll('.deco').forEach(c=>draw(c,c.dataset.s,{g:AR[+c.dataset.a].dg,h:'#6a3a1a'}));
+ document.querySelectorAll('.node:not([disabled])').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,st=ST[k];beep(700);
+  dialog(`<h2>ステージ${k+1}${st.boss?' ボス':''}</h2><p>${st.m}<br>${st.ex.map(e=>EX[e].n).join('・')}</p>`,[['いく！',()=>startBattle(k)],['やめる']])});
+ const mh=$('mapHero');drawHero(mh);
+ const place=k=>{const p=pos(Math.min(k,ST.length-1));mh.style.left=p.x+'%';mh.style.top=(p.y-26)+'px';return p};
+ const target=Math.min(clear,ST.length-1);
+ if(walkFrom!==null&&walkFrom<target){
+  mh.style.transition='none';const p=place(walkFrom);walkFrom=null;
+  requestAnimationFrame(()=>{$('map').scrollTop=p.y-$('map').clientHeight/2;
+   setTimeout(()=>{mh.style.transition='';const q=place(target);$('map').scrollTop=q.y-$('map').clientHeight/2;beep(990,.1)},400)});
+ }else{walkFrom=null;const p=place(target);requestAnimationFrame(()=>{$('map').style.scrollBehavior='auto';$('map').scrollTop=p.y-$('map').clientHeight/2;$('map').style.scrollBehavior=''})}
+ if(dunClear){dunClear=false;const nx=DUN[cd+1];
+  setTimeout(()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.2),i*180));
+   dialog(`<h2>★ ダンジョン クリア！ ★</h2><p>${D.n}を せいは した！${nx?`<br>ワールドに<br>「${nx.n}」が あらわれた！`:'<br>まおうを たおした！<br>きみは ほんものの ゆうしゃだ！'}</p>`,[['ワールドへ',()=>{renderWorld();show('sWorld')}],['ここに のこる']])},600)}
+}
+
+// ---------- こうかんじょ ----------
+function renderShop(){
+ drawHero($('shopHero'));updHud();
+ $('tabEq').classList.toggle('on',shopTab==='eq');$('tabRw').classList.toggle('on',shopTab==='rw');
+ if(shopTab==='rw'){renderRew();return}
+ $('items').innerHTML=ITEMS.map(it=>{const own=S.own.includes(it.id),eq=S.eq[it.slot]===it.id;
+  const btn=own?`<button class="${eq?'eq':''}" data-a="eq" data-id="${it.id}">${eq?'はずす':'つける'}</button>`:`<button data-a="buy" data-id="${it.id}" ${S.coin<it.p?'disabled':''}>${S.coin<it.p?'たりない':'こうかん'}</button>`;
+  return `<div class="win item"><canvas class="px" data-s="${it.spr}" data-id="${it.id}"></canvas><div><h3>${it.sp?'<span class="spb">とくべつ</span>':''}${it.n}${eq?' （そうびちゅう）':''}</h3><p>${it.d}</p><div class="pr">${own?'もっている':it.p+'P'}</div></div>${btn}</div>`}).join('')
+  +'<p class="note">そうびは みためが かわるよ。つよさは かわりません。</p>';
+ $('items').querySelectorAll('.item canvas').forEach(c=>{const it=ITEMS.find(i=>i.id===c.dataset.id);draw(c,it.spr,it.pal||{})});
+ $('items').querySelectorAll('.item button').forEach(b=>b.onclick=()=>{const it=ITEMS.find(i=>i.id===b.dataset.id);
+  if(b.dataset.a==='buy'){dialog(`<h2>${it.n}</h2><p>${it.p}ポイントで こうかん する？</p>`,[['こうかん する！',()=>{S.coin-=it.p;addLog(`${it.n}と こうかん`,-it.p);S.own.push(it.id);S.eq[it.slot]=it.id;save();[660,880].forEach((f,i)=>setTimeout(()=>beep(f,.12),i*120));renderShop()}],['やめる']])}
+  else{S.eq[it.slot]=S.eq[it.slot]===it.id?null:it.id;save();beep(700);renderShop()}});
+}
+
+function renderRew(){
+ const tk=S.tix.filter(t=>!t.used);
+ $('items').innerHTML=REW.map(r=>`<div class="win item"><canvas class="px" data-r="${r.id}"></canvas><div><h3>${r.n}</h3><p>${r.d}</p><div class="pr">${r.p}P</div></div><button data-r="${r.id}" ${S.coin<r.p?'disabled':''}>${S.coin<r.p?'たりない':'こうかん'}</button></div>`).join('')
+  +`<div class="win"><h2 style="font-size:17px">もっている ごほうびチケット</h2><div class="tix">${tk.length?tk.map(t=>`<div class="tk"><div>${t.n}<small>${t.t} に こうかん</small></div><button data-use="${t.id}">つかった</button></div>`).join(''):'<p class="tip" style="margin:0">まだ ないよ。ポイントを ためて こうかん しよう！</p>'}</div></div>
+  <p class="note">チケットは おうちのひとに みせて つかってね。<br>つかったら「つかった」を おしてもらおう。<br>つかった きろくは ポイントの りれきで みられるよ。</p>`;
+ $('items').querySelectorAll('.item canvas').forEach(c=>{const r=REW.find(x=>x.id===c.dataset.r);draw(c,r.spr,r.pal||{})});
+ $('items').querySelectorAll('.item button').forEach(b=>b.onclick=()=>{const r=REW.find(x=>x.id===b.dataset.r);
+  dialog(`<h2>${r.n}</h2><p>${r.p}ポイントで こうかん する？<br>おうちのひとと やくそく してから こうかん してね。</p>`,[['こうかん する！',()=>{
+   S.coin-=r.p;addLog(`ごほうび：${r.n}`,-r.p);S.tix.unshift({id:Date.now(),n:r.n,t:now(),used:false});save();
+   [660,880,1100].forEach((f,i)=>setTimeout(()=>beep(f,.12),i*120));renderShop();
+   dialog(`<h2>ごほうびチケット ゲット！</h2><div class="tk"><div>${r.n}<small>${now()}</small></div></div><p>おうちのひとに みせてね！</p>`,[['OK']])}],['やめる']])});
+ $('items').querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{const t=S.tix.find(x=>x.id===+b.dataset.use);
+  dialog(`<h2>つかった？</h2><p>「${t.n}」を つかった ことに するよ。<br>（おうちのひとが おしてね）</p>`,[['つかった',()=>{S.tix=S.tix.filter(x=>x!==t);addLog(`チケット しよう：${t.n}`,0,'use');save();beep(700);renderShop()}],['まだ']])});
+}
+function renderHist(){
+ $('hTot').textContent=S.coin+'P';
+ $('hList').innerHTML=S.log.length?S.log.map(l=>l.k==='use'?`<div class="hrow use"><span></span><small>${l.t}</small><b>つかった</b></div>`:`<div class="hrow"><span></span><small>${l.t}</small><b class="${l.v<0?'minus':'plus'}">${l.v?(l.v>0?'+':'')+l.v+'P':'🎁'}</b></div>`).join(''):'<p class="tip">まだ りれきは ないよ。モンスターを たおすと ポイントが もらえるよ！</p>';
+ $('hList').querySelectorAll('.hrow span').forEach((sp,i)=>sp.textContent=S.log[i].d);
+}
+
+// ---------- バトル ----------
+function startBattle(k){
+ const s=stagesOf(cd)[k],a=DUN[cd].areas[s.a];
+ const list=s.ex.map(e=>EX[e]);const total=list.reduce((t,e)=>t+e.c,0);
+ B={k,s,list,step:0,n:0,hp:total,total,running:false};
+ $('scene').style.background=a.bg;$('scene').style.setProperty('--gd',a.gd);$('scene').style.setProperty('--ge',a.ge);
+ $('mName').textContent=s.m+(s.boss?' （ボス）':'');
+ drawHero($('heroC'));draw($('monC'),s.sp,s.pal);$('monC').className='px';
+ $('monC').style.width=(s.boss?170:130)+'px';
+ show('sBattle');dialog(`<h2>${s.m}が あらわれた！</h2><p>${list.map(e=>`${e.n} ${e.c}${e.t==='rep'?'かい':'びょう'}`).join('<br>')}<br>で たおそう！</p>`,[['たたかう！',setStep]]);
+}
+function setStep(){
+ const e=B.list[B.step];B.n=0;B.running=false;
+ $('exName').textContent=(B.list.length>1?`(${B.step+1}/${B.list.length}) `:'')+e.n;
+ $('exTip').textContent=e.tip;updCount();
+ $('actBtn').textContent=e.t==='rep'?`${Math.min(10,e.c-B.n)}かい できた！`:'スタート！';$('actBtn').disabled=false;
+}
+function updCount(){const e=B.list[B.step];$('count').innerHTML=`${e.t==='rep'?B.n:e.c-B.n}<small> / ${e.c}${e.t==='rep'?'かい':'びょう'}</small>`;$('mHp').style.width=(B.hp/B.total*100)+'%'}
+function hit(a=1){
+ B.n+=a;B.hp-=a;beep(a>1?440:520+B.n*20,a>1?.2:.08);
+ const h=$('heroC'),m=$('monC');h.classList.remove('atk');m.classList.remove('hit');void h.offsetWidth;h.classList.add('atk');m.classList.add('hit');
+ const d=document.createElement('div');d.className='dmg';d.textContent=a;if(a>1)d.style.fontSize='40px';d.style.right=(20+Math.random()*20)+'%';d.style.bottom='160px';$('scene').append(d);setTimeout(()=>d.remove(),700);
+ updCount();
+ const e=B.list[B.step];if(e.t==='rep'&&B.n<e.c)$('actBtn').textContent=`${Math.min(10,e.c-B.n)}かい できた！`;
+ if(B.n>=e.c){clearInterval(timer);$('actBtn').disabled=true;B.step++;
+  if(B.step<B.list.length)setTimeout(()=>dialog('<h2>いいぞ！ あと すこし！</h2><p>つぎの わざで とどめだ！<br>すこし いきを ととのえよう。</p>',[['つぎへ',setStep]]),500);
+  else setTimeout(win,500)}
+}
+$('actBtn').onclick=()=>{const e=B.list[B.step];
+ if(e.t==='rep')hit(Math.min(10,e.c-B.n));
+ else if(!B.running){B.running=true;$('actBtn').textContent='がんばれ…！';$('actBtn').disabled=true;timer=setInterval(hit,1000)}};
+function win(){
+ $('monC').classList.add('down');[660,880,1100].forEach((f,i)=>setTimeout(()=>beep(f,.15),i*150));
+ const before=lvOf(S.xp),gx=B.total*2+(B.s.boss?20:0),gc=B.s.boss?30:10;
+ S.xp+=gx;S.coin+=gc;S.done++;addLog(`${B.s.m}を たおした`,gc);
+ if(B.k===S.prog[cd]){walkFrom=S.prog[cd];S.prog[cd]++;if(S.prog[cd]===stagesOf(cd).length)dunClear=true}
+ const y=new Date(Date.now()-864e5).toLocaleDateString('ja-JP');
+ if(S.last!==today()){S.streak=S.last===y?S.streak+1:1;S.last=today()}
+ save();const up=lvOf(S.xp)>before;
+ setTimeout(()=>dialog(`<h2>${B.s.m}を たおした！</h2><p>けいけんち +${gx}<br>ポイント +${gc}${up?`<br><b style="color:var(--gold)">レベルアップ！ Lv${lvOf(S.xp)}になった！</b>`:''}</p>`,[['マップへ',()=>{renderMap();show('sMap')}]]),900);
+}
+$('runBtn').onclick=()=>{clearInterval(timer);dialog('<h2>にげる？</h2><p>やすみたい ときは<br>むりしないで だいじょうぶ！</p>',[['マップへ もどる',()=>{renderMap();show('sMap')}],['たたかいを つづける',()=>{if(B.running){timer=setInterval(hit,1000)}}]])};
+
+// ---------- せってい ----------
+function renderSet(){drawHero($('prevC'));$('nameIn').value=S.name||'';
+ const mine=ITEMS.filter(i=>S.own.includes(i.id));
+ $('setEq').innerHTML=mine.length?mine.map(it=>{const eq=S.eq[it.slot]===it.id;return `<div class="item" style="padding:0"><canvas class="px" data-id="${it.id}"></canvas><div><h3>${it.n}</h3><p>${eq?'そうびちゅう':'はずしている'}</p></div><button class="${eq?'eq':''}" data-se="${it.id}">${eq?'はずす':'つける'}</button></div>`}).join(''):'<p class="tip" style="margin:0">まだ そうびを もっていないよ。ポイント こうかんじょで こうかん しよう！</p>';
+ $('setEq').querySelectorAll('canvas').forEach(c=>{const it=ITEMS.find(i=>i.id===c.dataset.id);draw(c,it.spr,it.pal||{})});
+ $('setEq').querySelectorAll('button').forEach(b=>b.onclick=()=>{const it=ITEMS.find(i=>i.id===b.dataset.se);S.eq[it.slot]=S.eq[it.slot]===it.id?null:it.id;beep(700);renderSet()});
+ $('gBoy').classList.toggle('sel',S.gender!=='girl');$('gGirl').classList.toggle('sel',S.gender==='girl');
+ $('sws').innerHTML=COLORS.map((c,i)=>`<button class="sw ${i===S.color?'sel':''}" data-i="${i}" style="background:${c[1]}">${c[0]}</button>`).join('');
+ document.querySelectorAll('.sw').forEach(b=>b.onclick=()=>{S.color=+b.dataset.i;beep(700);renderSet()})}
+const cur=()=>document.querySelector('.screen.on').id;
+const openSet=from=>{back=from;if(!S.gender)S.gender='boy';renderSet();show('sSet')};
+const goBack=id=>{if(id==='sWorld')renderWorld();if(id==='sMap')renderMap();if(id==='sShop')renderShop();show(id)};
+$('gBoy').onclick=()=>{S.gender='boy';beep(700);renderSet()};
+$('gGirl').onclick=()=>{S.gender='girl';beep(700);renderSet()};
+// ---------- おうちのひと ----------
+function pinDialog(title,msg,cb){
+ dialog(`<h2>${title}</h2><p>${msg}</p><input id="pinIn" class="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="あんしょうばんごう"><p class="err" id="pinErr"></p>`,[['OK',()=>cb($('pinIn').value)],['やめる']]);
+ setTimeout(()=>$('pinIn')&&$('pinIn').focus(),50)}
+const okPin=v=>/^\d{4}$/.test(v);
+function newPin(then){pinDialog('あんしょうばんごうを きめる','おうちのひとが すうじ 4けたを きめてください。',v=>{
+ if(!okPin(v)){dialog('<h2>4けたの すうじに してね</h2>',[['もういちど',()=>newPin(then)]]);return}
+ pinDialog('もういちど いれてください','かくにんの ため もういちど。',w=>{if(w!==v){dialog('<h2>ちがう ばんごうでした</h2>',[['さいしょから',()=>newPin(then)]]);return}
+  ROOT.pin=v;save();beep(880);dialog('<h2>きめました！</h2><p>この ばんごうは こどもに ないしょに してね。</p>',[['OK',then]])})})}
+function openParent(){
+ if(!ROOT.pin){newPin(()=>{renderParent();show('sParent')});return}
+ pinDialog('おうちのひと メニュー','あんしょうばんごうを いれてください。',v=>{
+  if(v!==ROOT.pin){beep(200,.2);dialog('<h2>ばんごうが ちがいます</h2>',[['もういちど',openParent],['やめる']]);return}
+  renderParent();show('sParent')})}
+function renderParent(){
+ bkInfoUpd();$('bkOut').hidden=true;
+ $('addNow').textContent=`いまの ポイント：${S.coin}P`;
+ $('giftEq').innerHTML=ITEMS.map(it=>{const own=S.own.includes(it.id);return `<div class="item" style="padding:0"><canvas class="px" data-id="${it.id}"></canvas><div><h3>${it.n}</h3><p>${own?'もっている':'まだ もっていない'}</p></div><button data-g="${it.id}" ${own?'disabled':''}>${own?'もっている':'あげる'}</button></div>`}).join('');
+ $('giftEq').querySelectorAll('canvas').forEach(c=>{const it=ITEMS.find(i=>i.id===c.dataset.id);draw(c,it.spr,it.pal||{})});
+ $('giftEq').querySelectorAll('button[data-g]').forEach(b=>b.onclick=()=>{const it=ITEMS.find(i=>i.id===b.dataset.g);
+  dialog(`<h2>${it.n}を あげる？</h2><p>ポイントは へりません。</p>`,[['あげる',()=>{S.own.push(it.id);S.eq[it.slot]=it.id;addLog(`おうちのひとから ${it.n}`,0);save();[660,880].forEach((f,i)=>setTimeout(()=>beep(f,.12),i*120));renderParent()}],['やめる']])});
+}
+function addPoints(n){
+ n=Math.floor(+n);if(!(n>0&&n<=10000)){dialog('<h2>1〜10000の かずを いれてね</h2>',[['OK']]);return}
+ const r=$('addR').value.trim().slice(0,30)||'おうちのひとから';
+ dialog(`<h2>${n}ポイント ふやす？</h2><p>りゆう：<span id="rsn"></span></p>`,[['ふやす',()=>{S.coin+=n;addLog(r,n);save();[660,880,1100].forEach((f,i)=>setTimeout(()=>beep(f,.12),i*120));$('addN').value='';$('addR').value='';renderParent();dialog(`<h2>+${n}P ふやしました</h2>`,[['OK']])}],['やめる']]);
+ $('rsn').textContent=r}
+document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addPoints(b.dataset.add));
+$('addBtn').onclick=()=>addPoints($('addN').value);
+$('pinChg').onclick=()=>pinDialog('いまの ばんごう','いまの あんしょうばんごうを いれてください。',v=>{if(v!==ROOT.pin){dialog('<h2>ばんごうが ちがいます</h2>',[['OK']]);return}newPin(()=>{})});
+$('parentBtn').onclick=()=>{save();openParent()};
+$('parentBack').onclick=()=>{renderSet();show('sSet')};
+$('setOk').onclick=()=>{S.name=$('nameIn').value.trim().slice(0,8);save();beep(880);drawHero($('titleHero'));goBack(back)};
+$('setBtn2').onclick=()=>openSet(cur());
+$('tabEq').onclick=()=>{shopTab='eq';beep(600);renderShop()};
+$('tabRw').onclick=()=>{shopTab='rw';beep(600);renderShop()};
+$('pt').onclick=()=>{const c=cur();if(c!=='sHist')histBack=c;beep(700);renderHist();show('sHist')};
+$('histBack').onclick=()=>goBack(histBack);
+$('toWorld1').onclick=$('toWorld2').onclick=()=>{beep(500);renderWorld();show('sWorld')};
+// ---------- バックアップ ----------
+const bkHash=t=>{let h=0x811c9dc5;const k='uq-salt-26'+t;for(let i=0;i<k.length;i++){h^=k.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h.toString(16).padStart(8,'0')};
+const bkDays=()=>ROOT.lastBk?Math.floor((Date.now()-new Date(ROOT.lastBk))/864e5):null;
+function bkInfoUpd(){const d=bkDays();$('bkInfo').textContent=d===null?'まだ いちども バックアップ していません。':`さいごの バックアップ：${new Date(ROOT.lastBk).toLocaleDateString('ja-JP')}（${d?d+'にち まえ':'きょう'}）`}
+function bkMake(){save();const b=btoa(unescape(encodeURIComponent(JSON.stringify({v:1,at:new Date().toISOString(),slots:ROOT.slots}))));return 'UQ1-'+b+'-'+bkHash(b)}
+function bkDone(){ROOT.lastBk=new Date().toISOString();save();bkInfoUpd()}
+function bkRead(txt){
+ const m=String(txt).replace(/\s+/g,'').match(/^UQ1-([A-Za-z0-9+/=]+)-([0-9a-f]{8})$/);
+ if(!m||bkHash(m[1])!==m[2]){beep(200,.2);dialog('<h2>よみこめません</h2><p>バックアップの もじが ちがうか、とちゅうで かわっています。<br>ぜんぶ コピー できているか たしかめてね。</p>',[['OK']]);return}
+ let d;try{d=JSON.parse(decodeURIComponent(escape(atob(m[1]))))}catch(e){}
+ if(!d||!Array.isArray(d.slots)||d.slots.length!==3){dialog('<h2>よみこめません</h2><p>バックアップの なかみが こわれています。</p>',[['OK']]);return}
+ dialog(`<h2>この バックアップで もどす？</h2><p>${new Date(d.at).toLocaleString('ja-JP')} の バックアップ<br><span id="bkNames"></span><br><b style="color:#ff8a8a">いまの 3にんぶんの きろくは うわがき されます。</b></p>`,[['もどす',()=>{
+  ROOT.slots=d.slots.map(x=>x&&typeof x==='object'?x:null);ROOT.lastBk=new Date().toISOString();
+  const f=ROOT.slots.findIndex(x=>x);if(f>=0)loadSlot(f);else{ROOT.cur=0;S=fresh()}
+  try{localStorage.setItem('uq',JSON.stringify(ROOT))}catch(e){}
+  $('bkPaste').value='';[660,880,1100].forEach((f,i)=>setTimeout(()=>beep(f,.12),i*120));
+  renderPlayers();show('sPlayers');dialog('<h2>もどしました！</h2><p>あそぶ ひとを えらんでね。</p>',[['OK']])}],['やめる']]);
+ $('bkNames').textContent=d.slots.map((x,i)=>x?`${x.name||'プレイヤー'+(i+1)}（${x.coin||0}P）`:'（あき）').join('・')}
+$('bkFile').onclick=()=>{const t=bkMake();let ok=false;
+ try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/plain'}));a.download=`undou-quest-backup-${new Date().toISOString().slice(0,10)}.txt`;document.body.append(a);a.click();a.remove();ok=true}catch(e){}
+ bkDone();beep(880);dialog(`<h2>かきだしました</h2><p>${ok?'ダウンロードした ファイルを グーグルドライブや メールなど あんぜんな ばしょに ほかん してね。':'ファイルに できなかったので「もじで コピーする」を つかってね。'}</p>`,[['OK']])};
+$('bkCopy').onclick=async()=>{const t=bkMake();const o=$('bkOut');o.value=t;o.hidden=false;let ok=false;
+ try{await navigator.clipboard.writeText(t);ok=true}catch(e){o.focus();o.select()}
+ bkDone();beep(880);dialog(`<h2>${ok?'コピーしました':'コピーの じゅんび できました'}</h2><p>${ok?'':'したの わくの もじを ぜんぶ えらんで コピーしてね。<br>'}メモや じぶんあての メールに はりつけて ほかん してね。</p>`,[['OK']])};
+$('bkIn').onchange=e=>{const f=e.target.files[0];if(!f)return;if(f.size>2e6){dialog('<h2>ファイルが おおきすぎます</h2>',[['OK']]);return}
+ const r=new FileReader();r.onload=()=>bkRead(r.result);r.readAsText(f);e.target.value=''};
+$('bkLoad').onclick=()=>bkRead($('bkPaste').value);
+
+function renderPlayers(){
+ {const d=bkDays(),any=ROOT.slots.some(x=>x&&((x.xp||0)>0||(x.coin||0)>0));const n=$('bkNag');
+  n.hidden=!(any&&(d===null||d>=7));n.textContent=d===null?'おうちのひとへ：まだ バックアップ していません（おうちのひと メニューから）':`おうちのひとへ：さいごの バックアップから ${d}にち たちました`}
+ $('slots').innerHTML=ROOT.slots.map((st,i)=>{if(!st)return `<button class="slot empty" data-s="${i}">＋ あたらしく はじめる<small>プレイヤー${i+1}</small></button>`;
+  const cleared=DUN.filter((d,j)=>(st.prog||[])[j]>=stagesOf(j).length).length;
+  return `<button class="slot ${i===ROOT.cur&&ROOT.slots[ROOT.cur]?'cur':''}" data-s="${i}"><canvas class="px" data-s="${i}"></canvas><span><b class="nm"></b><small>Lv${lvOf(st.xp||0)}　${st.coin||0}P</small><small>クリアした ダンジョン ${cleared}/${DUN.length}</small></span></button>`}).join('');
+ $('slots').querySelectorAll('.slot').forEach(b=>{const i=+b.dataset.s,st=ROOT.slots[i];
+  if(st){b.querySelector('.nm').textContent=st.name||`プレイヤー${i+1}`;drawHero(b.querySelector('canvas'),st)}
+  b.onclick=()=>{beep(880);loadSlot(i);if(!st){S=fresh();save();openSet('sWorld');return}save();drawHero($('titleHero'));renderWorld();show('sWorld')}})}
+$('startBtn').onclick=()=>{beep(880);renderPlayers();show('sPlayers')};
+$('plBack').onclick=()=>{drawHero($('titleHero'));show('sTitle')};
+$('nameIn').oninput=()=>{S.name=$('nameIn').value.trim().slice(0,8)};
+$('plSwitch').onclick=()=>{S.name=$('nameIn').value.trim().slice(0,8);save();renderPlayers();show('sPlayers')};
+$('delPl').onclick=()=>{dialog(`<h2>ほんとうに けす？</h2><p>「<span id="delNm"></span>」の ポイント・そうび・すすみぐあいが ぜんぶ きえます。もとに もどせません。</p>`,[['けす',()=>{ROOT.slots[ROOT.cur]=null;S=fresh();try{localStorage.setItem('uq',JSON.stringify(ROOT))}catch(e){}beep(200,.2);renderPlayers();show('sPlayers')}],['やめる']]);$('delNm').textContent=S.name||`プレイヤー${ROOT.cur+1}`};
+drawHero($('titleHero'));
+try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+}
+</script>
+</body>
+</html>
