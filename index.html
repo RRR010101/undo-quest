@@ -304,34 +304,38 @@ function draw(cv,name,pal){const rows=SPR[name];cv.width=rows[0].length;cv.heigh
 // ---------- データ ----------
 const EX={
  squat:{n:'スクワット',t:'rep',c:20,tip:'あしを かたはばに ひらいて、いすに すわるように ゆっくり しゃがもう。'},
- jump:{n:'その場ジャンプ',t:'rep',c:20,tip:'ぴょんぴょん とぼう。ひざを やわらかく つかってね。'},
+ jump:{n:'その場ジャンプ',t:'rep',c:20,j:1,tip:'ぴょんぴょん とぼう。ひざを やわらかく つかってね。'},
  run:{n:'その場かけあし',t:'sec',c:30,tip:'ももを たかく あげて、うでも ふって はしろう！'},
  arm:{n:'うでまわし',t:'rep',c:20,tip:'りょううでを おおきく まえに ぐるん。'},
- leg:{n:'かたあしだち',t:'sec',c:20,tip:'ふらふらしても だいじょうぶ。かべの ちかくで やろう。'},
+ leg:{n:'かたあしだち',t:'sec',c:20,max:60,tip:'ふらふらしても だいじょうぶ。かべの ちかくで やろう。'},
  stretch:{n:'バンザイのび',t:'rep',c:5,tip:'うでを うえに ぐーんと のばして、3つ かぞえよう。'},
- frog:{n:'カエルジャンプ',t:'rep',c:8,tip:'しゃがんで、まえに ぴょーん！ まわりに ものが ないか みてね。'},
+ frog:{n:'カエルジャンプ',t:'rep',c:8,j:1,tip:'しゃがんで、まえに ぴょーん！ まわりに ものが ないか みてね。'},
  crunch:{n:'ふっきん',t:'rep',c:10,tip:'あおむけで ひざを たてて、おへそを のぞきこむように せなかを すこし まるめよう。くびを ひっぱらないでね。'},
- plank:{n:'プランク',t:'sec',c:20,tip:'ひじと つまさきで からだを まっすぐ ささえよう。おしりが あがったり さがったり しないように。'},
- bike:{n:'じてんしゃこぎ',t:'sec',c:20,tip:'あおむけで あしを うかせて、じてんしゃを こぐように ぐるぐる まわそう。'},
- boat:{n:'ボートのポーズ',t:'sec',c:10,tip:'すわって ひざを まげたまま あしを うかせ、からだで V の かたちを つくろう。てを まえに のばしても OK。'},
- star:{n:'ほしジャンプ',t:'rep',c:20,tip:'とびながら てあしを ひろげて ほしの かたちに！'}};
+ plank:{n:'プランク',t:'sec',c:20,max:60,tip:'ひじと つまさきで からだを まっすぐ ささえよう。おしりが あがったり さがったり しないように。'},
+ bike:{n:'じてんしゃこぎ',t:'sec',c:20,max:60,tip:'あおむけで あしを うかせて、じてんしゃを こぐように ぐるぐる まわそう。'},
+ boat:{n:'ボートのポーズ',t:'sec',c:10,max:30,tip:'すわって ひざを まげたまま あしを うかせ、からだで V の かたちを つくろう。てを まえに のばしても OK。'},
+ star:{n:'ほしジャンプ',t:'rep',c:20,j:1,tip:'とびながら てあしを ひろげて ほしの かたちに！'}};
 const A=(n,bg,gd,ge,deco,dg,st)=>({n,bg,gd,ge,deco,dg,st});
 const M=(m,sp,pal,ex,boss)=>({m,sp,pal,ex,boss});
 const DUN=[
- {n:'はじまりの ダンジョン',icon:'cave',ip:{g:'#9a8a7a'},x:8,y:13,areas:[
+ {n:'はじまりの ダンジョン',mult:1,icon:'cave',ip:{g:'#9a8a7a'},x:8,y:13,areas:[
   A('そうげん','linear-gradient(#6ec3ff,#bfe8ff)','#3f9a3a','#6ccc4f','tree','#2f8a34',[M('スライム','slime',{g:'#4cc45a'},['squat']),M('あおスライム','slime',{g:'#3fa0e8'},['jump']),M('スライムキング','king',{g:'#4cc45a'},['arm','squat'],1)]),
   A('きのこの もり','linear-gradient(#245a3a,#4b8a52)','#5b3b22','#3a7a33','tree','#3a7a33',[M('おばけキノコ','shroom',{g:'#d9433b'},['run']),M('どくキノコ','shroom',{g:'#9a4bd0'},['frog','crunch']),M('もりの おばけ','ghost',{g:'#e6e6ff'},['leg','jump'],1)]),
   A('いわの どうくつ','linear-gradient(#1a1a2a,#3a3450)','#4a4458','#6e6880','rock','#9a96b0',[M('くらやみおばけ','ghost',{g:'#9aa0ff'},['star','bike']),M('いわスライム','slime',{g:'#8a8a99'},['squat','stretch']),M('ゴーレム','golem',{g:'#9a8a7a',d:'#5a4a3a'},['run','frog'],1)]),
   A('ほのおの とりで','linear-gradient(#3a1028,#a8402a)','#3a2a2a','#7a3a2a','tower','#8a3a2a',[M('ほのおスライム','slime',{g:'#f07a2a'},['jump','arm']),M('ほのおゴーレム','golem',{g:'#a84a2a',d:'#5a1a0a'},['plank','leg']),M('ドラゴン','dragon',{g:'#d9433b',d:'#7a1a1a'},['squat','run','star'],1)])]},
- {n:'こおりの どうくつ',icon:'cave',ip:{g:'#a8d8f0'},x:2,y:9,areas:[
+ {n:'こおりの どうくつ',mult:1.5,icon:'cave',ip:{g:'#a8d8f0'},x:2,y:9,areas:[
   A('つめたい いりぐち','linear-gradient(#a8d8f0,#e8f6ff)','#c8e8f8','#ffffff','rock','#e0f4ff',[M('こおりスライム','slime',{g:'#8ad0f0'},['run']),M('ゆきおばけ','ghost',{g:'#ffffff'},['crunch']),M('こおりキノコ','shroom',{g:'#5aa8e8'},['star','arm'],1)]),
   A('こおりの おく','linear-gradient(#2a4a7a,#6a9ad0)','#8ab8e0','#d0ecff','rock','#c0e0ff',[M('つららスライム','slime',{g:'#c0e8ff'},['frog']),M('こおりゴーレム','golem',{g:'#a8d8f0',d:'#5a8ab0'},['plank','jump']),M('ゆきの おう','king',{g:'#e0f4ff'},['squat','run','stretch'],1)])]},
- {n:'そらの とう',icon:'spire',ip:{g:'#f0e6c8'},x:9,y:5,areas:[
+ {n:'そらの とう',mult:2,icon:'spire',ip:{g:'#f0e6c8'},x:9,y:5,areas:[
   A('くもの かいだん','linear-gradient(#7ac8ff,#ffffff)','#e8e8f0','#ffffff','tower','#ffffff',[M('くもスライム','slime',{g:'#f0f0ff'},['jump']),M('かぜの おばけ','ghost',{g:'#b0f0d0'},['bike']),M('てんくうゴーレム','golem',{g:'#f0d890',d:'#b09040'},['star','squat'],1)]),
   A('とうの てっぺん','linear-gradient(#f0a060,#ffe0a0)','#c8a060','#f0d090','tower','#f0d090',[M('ひかりキノコ','shroom',{g:'#f7d046'},['frog','arm']),M('かみなりスライム','slime',{g:'#f7e046'},['star','boat']),M('そらの ドラゴン','dragon',{g:'#3fa0e8',d:'#1a4a8a'},['jump','run','squat'],1)])]},
- {n:'まおうの しろ',icon:'castle',ip:{g:'#6a4a7a'},x:5,y:2,areas:[
+ {n:'まおうの しろ',mult:2,icon:'castle',ip:{g:'#6a4a7a'},x:5,y:2,areas:[
   A('やみの もん','linear-gradient(#1a0a28,#4a2050)','#2a1a3a','#5a3a6a','tower','#6a4a7a',[M('やみスライム','slime',{g:'#6a3a9a'},['squat','jump']),M('やみの おばけ','ghost',{g:'#c080ff'},['crunch','run']),M('まもりの ゴーレム','golem',{g:'#3a2a4a',d:'#1a0a2a'},['star','leg'],1)]),
   A('まおうの ま','linear-gradient(#300818,#802030)','#3a1a1a','#7a2a2a','tower','#8a3a2a',[M('まおうスライム','king',{g:'#5a2a8a'},['frog','run']),M('ほのおの おばけ','ghost',{g:'#ff8a4a'},['squat','star']),M('まおう ドラゴン','dragon',{g:'#3a2a5a',d:'#1a0a2a',w:'#d9433b'},['squat','run','plank','star'],1)])]}];
+// むずかしさ：ダンジョンの きつさ × むずかしいモード（2ばい）。ぜんたいは 3ばいまで、ジャンプけいは 2ばいまで
+const exOf=(d,e,hard)=>{const x=EX[e];let m=Math.min(DUN[d].mult*(hard?2:1),3);if(x.j)m=Math.min(m,2);
+ let c=x.c*m;c=x.t==='rep'?Math.round(c):Math.round(c/5)*5;if(x.max)c=Math.min(c,Math.max(x.max,x.c));return{...x,c}};
+const exTxt=e=>`${e.n} ${e.c}${e.t==='rep'?'かい':'びょう'}`;
 const stagesOf=d=>DUN[d].areas.flatMap((a,ai)=>a.st.map(s=>({...s,a:ai})));
 const SHOP={x:2,y:15};
 const LOCS=[{t:'shop',...SHOP},...DUN.map((d,i)=>({t:'dun',i,x:d.x,y:d.y}))];
@@ -448,7 +452,7 @@ function goLoc(i){
 function openLoc(i){const L=LOCS[i];
  if(L.t==='shop'){renderShop();show('sShop');return}
  const d=DUN[L.i],n=stagesOf(L.i).length;
- dialog(`<h2>${d.n}</h2><p>ステージ ${n}こ<br>${isDone(L.i)?'★クリアずみ。また あそべるよ！':`いま ${Math.min(S.prog[L.i],n)}/${n}`}</p>`,[['はいる！',()=>{cd=L.i;walkFrom=null;renderMap();show('sMap')}],['やめる']]);
+ dialog(`<h2>${d.n}</h2><p>ステージ ${n}こ　うんどう ×${d.mult}<br>${isDone(L.i)?'★クリアずみ。また あそべるよ！':`いま ${Math.min(S.prog[L.i],n)}/${n}`}</p>`,[['はいる！',()=>{cd=L.i;walkFrom=null;renderMap();show('sMap')}],['やめる']]);
 }
 
 // ---------- ダンジョンマップ ----------
@@ -473,7 +477,8 @@ function renderMap(){
  $('mapIn').style.height=H+'px';$('mapIn').innerHTML=h;
  document.querySelectorAll('.deco').forEach(c=>draw(c,c.dataset.s,{g:AR[+c.dataset.a].dg,h:'#6a3a1a'}));
  document.querySelectorAll('.node:not([disabled])').forEach(b=>b.onclick=()=>{const k=+b.dataset.k,st=ST[k];beep(700);
-  dialog(`<h2>ステージ${k+1}${st.boss?' ボス':''}</h2><p>${st.m}<br>${st.ex.map(e=>EX[e].n).join('・')}</p>`,[['いく！',()=>startBattle(k)],['やめる']])});
+  const p0=st.boss?30:10;
+  dialog(`<h2>ステージ${k+1}${st.boss?' ボス':''}</h2><p>${st.m}</p><div class="win" style="text-align:left;font-size:14px;padding:8px 10px">ふつう（${p0}P）<br>${st.ex.map(e=>exTxt(exOf(cd,e,0))).join('<br>')}</div><div class="win" style="text-align:left;font-size:14px;padding:8px 10px;border-color:var(--red)">むずかしい（${Math.round(p0*1.5)}P）<br>${st.ex.map(e=>exTxt(exOf(cd,e,1))).join('<br>')}</div>`,[['ふつうで いく',()=>startBattle(k,0)],['むずかしいで いく！',()=>startBattle(k,1)],['やめる']]);$('db1').classList.remove('sub');$('db1').style.background='var(--red)'});
  const mh=$('mapHero');drawHero(mh);
  const place=k=>{const p=pos(Math.min(k,ST.length-1));mh.style.left=p.x+'%';mh.style.top=(p.y-26)+'px';return p};
  const target=Math.min(clear,ST.length-1);
@@ -523,12 +528,12 @@ function renderHist(){
 }
 
 // ---------- バトル ----------
-function startBattle(k){
+function startBattle(k,hard=0){
  const s=stagesOf(cd)[k],a=DUN[cd].areas[s.a];
- const list=s.ex.map(e=>EX[e]);const total=list.reduce((t,e)=>t+e.c,0);
- B={k,s,list,step:0,n:0,hp:total,total,running:false};
+ const list=s.ex.map(e=>exOf(cd,e,hard));const total=list.reduce((t,e)=>t+e.c,0);
+ B={k,s,list,step:0,n:0,hp:total,total,running:false,hard};
  $('scene').style.background=a.bg;$('scene').style.setProperty('--gd',a.gd);$('scene').style.setProperty('--ge',a.ge);
- $('mName').textContent=s.m+(s.boss?' （ボス）':'');
+ $('mName').textContent=s.m+(s.boss?' （ボス）':'')+(hard?' ★むずかしい':'');
  drawHero($('heroC'));draw($('monC'),s.sp,s.pal);$('monC').className='px';
  $('monC').style.width=(s.boss?170:130)+'px';
  show('sBattle');dialog(`<h2>${s.m}が あらわれた！</h2><p>${list.map(e=>`${e.n} ${e.c}${e.t==='rep'?'かい':'びょう'}`).join('<br>')}<br>で たおそう！</p>`,[['たたかう！',setStep]]);
@@ -556,8 +561,8 @@ $('actBtn').onclick=()=>{const e=B.list[B.step];
 function win(){
  bgmStop();
  $('monC').classList.add('down');[660,880,1100].forEach((f,i)=>setTimeout(()=>beep(f,.15),i*150));
- const before=lvOf(S.xp),gx=B.total*2+(B.s.boss?20:0),gc=B.s.boss?30:10;
- S.xp+=gx;S.coin+=gc;S.done++;addLog(`${B.s.m}を たおした`,gc);
+ const before=lvOf(S.xp),gx=B.total*2+(B.s.boss?20:0),gc=Math.round((B.s.boss?30:10)*(B.hard?1.5:1));
+ S.xp+=gx;S.coin+=gc;S.done++;addLog(`${B.s.m}を たおした${B.hard?'（むずかしい）':''}`,gc);
  if(B.k===S.prog[cd]){walkFrom=S.prog[cd];S.prog[cd]++;if(S.prog[cd]===stagesOf(cd).length)dunClear=true}
  const y=new Date(Date.now()-864e5).toLocaleDateString('ja-JP');
  if(S.last!==today()){S.streak=S.last===y?S.streak+1:1;S.last=today()}
